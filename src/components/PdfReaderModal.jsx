@@ -148,7 +148,7 @@ export default function PdfReaderModal({ book, onClose, onSaveProgress, onShowTo
       if (!canvas) return;
       
       const context = canvas.getContext('2d');
-      const viewport = page.getViewport({ scale: 1.5 });
+      const viewport = page.getViewport({ scale: 2.2 });
       canvas.height = viewport.height;
       canvas.width = viewport.width;
       
@@ -260,11 +260,11 @@ export default function PdfReaderModal({ book, onClose, onSaveProgress, onShowTo
                 key={i} 
                 data-page={i + 1}
                 ref={el => pageRefs.current[i] = el}
-                className="w-full max-w-3xl aspect-[1/1.414] bg-[#0f172a] border border-white/5 rounded-lg flex flex-col items-center justify-center relative shadow-2xl p-1"
+                className="w-full max-w-2xl bg-[#0f172a]/50 border border-white/5 rounded-lg flex flex-col items-center justify-center relative shadow-xl min-h-[300px] md:min-h-[600px] overflow-hidden"
               >
                 <canvas 
                   id={`page-canvas-${i + 1}`}
-                  className="w-full h-auto bg-white rounded shadow-md max-h-[85vh] object-contain block"
+                  className="w-full h-auto bg-white rounded shadow-md object-contain block"
                 />
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none -z-10 text-white/20 text-xs italic">
                   Loading Page {i + 1}... 📖
