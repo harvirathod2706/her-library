@@ -172,12 +172,22 @@ export default function BookDetailModal({
         </div>
 
         {/* Read Book PDF Section */}
-        <div className="border-t border-[#d4a853]/15 pt-5 flex flex-col items-center">
+        <div className="border-t border-[#d4a853]/15 pt-5 flex flex-row justify-center gap-4 items-center">
           <button 
             onClick={onReadBook}
-            className="flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-[#7c2d3a] to-[#c4869a] rounded-lg text-white font-sans text-xs font-bold shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-[#7c2d3a] to-[#c4869a] rounded-lg text-white font-sans text-xs font-bold shadow-md cursor-pointer hover:opacity-95 transition-opacity"
           >
             <span>📖</span> Read Book
+          </button>
+          
+          <button 
+            onClick={() => {
+              const basePdfPath = book.pdf_url || `/Books/${fileName}.pdf`;
+              window.open(basePdfPath, '_blank');
+            }}
+            className="flex items-center gap-2 px-6 py-2.5 bg-[#d4a853]/10 border border-[#d4a853]/45 hover:bg-[#d4a853]/15 rounded-lg text-[#d4a853] font-sans text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
+          >
+            <span>🌐</span> Drive View
           </button>
         </div>
 

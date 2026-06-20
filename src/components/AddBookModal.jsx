@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { generateBookDetails } from '../geminiServices';
 
 const POPULAR_BOOKS_AUTO_FILL = {
   "verity": {
@@ -38,7 +39,7 @@ const POPULAR_BOOKS_AUTO_FILL = {
   }
 };
 
-export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, bookToEdit, onShowToast }) {
+export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, bookToEdit, onShowToast, books }) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [tags, setTags] = useState('');
@@ -147,35 +148,48 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
     }
   };
 
-  const handleAutoFill = () => {
+  const handleAutoFill = async () => {
     const tVal = title.trim();
     if (!tVal) {
       onShowToast("Please enter a Book Title first to auto-generate details! ✨");
       return;
     }
 
-    const key = tVal.toLowerCase();
-    const match = POPULAR_BOOKS_AUTO_FILL[key];
+    onShowToast("Librarian AI is generating details... 🪄✨");
 
-    if (match) {
-      setAuthor(match.author);
-      setTags(match.tags);
-      setDescription(match.description);
-      onShowToast("✨ Details auto-filled from popular recommendations!");
-    } else {
-      const fallbackAuthors = ["Sally Rooney", "Emily Henry", "Colleen Hoover", "Khaled Hosseini", "Taylor Jenkins Reid", "Holly Jackson"];
-      const selectedAuthor = author.trim() || fallbackAuthors[Math.floor(Math.random() * fallbackAuthors.length)];
+    try {
+      const details = await generateBookDetails(tVal, author.trim());
+      if (details.author) setAuthor(details.author);
+      if (details.tags) setTags(details.tags);
+      if (details.description) setDescription(details.description);
+      if (details.pages) setPages(details.pages);
+      onShowToast("✨ Details auto-filled perfectly using Gemini AI!");
+    } catch (err) {
+      console.warn("Gemini auto-fill failed, using local fallback:", err);
       
-      const possibleTags = ["Romance 💕", "Thriller 🔪", "Emotional 🥺", "Page-turner 📖", "Beautiful 🌸", "Dark 🖤", "Heartwarming ✨"];
-      const shuffled = [...possibleTags].sort(() => 0.5 - Math.random());
-      const generatedTags = shuffled.slice(0, 3).join(", ");
-      
-      const generatedDesc = `A beautiful, captivating read about "${tVal}" by ${selectedAuthor}. It takes you on a deep, emotional journey that you will not want to put down. ✨`;
+      const key = tVal.toLowerCase();
+      const match = POPULAR_BOOKS_AUTO_FILL[key];
 
-      setAuthor(selectedAuthor);
-      setTags(generatedTags);
-      setDescription(generatedDesc);
-      onShowToast("✨ Auto-generated a creative set of details for you!");
+      if (match) {
+        setAuthor(match.author);
+        setTags(match.tags);
+        setDescription(match.description);
+        onShowToast("✨ Local match found! Auto-filled from recommendations.");
+      } else {
+        const fallbackAuthors = ["Sally Rooney", "Emily Henry", "Colleen Hoover", "Khaled Hosseini", "Taylor Jenkins Reid", "Holly Jackson"];
+        const selectedAuthor = author.trim() || fallbackAuthors[Math.floor(Math.random() * fallbackAuthors.length)];
+        
+        const possibleTags = ["Romance 💕", "Thriller 🔪", "Emotional 🥺", "Page-turner 📖", "Beautiful 🌸", "Dark 🖤", "Heartwarming ✨"];
+        const shuffled = [...possibleTags].sort(() => 0.5 - Math.random());
+        const generatedTags = shuffled.slice(0, 3).join(", ");
+        
+        const generatedDesc = `A beautiful, captivating read about "${tVal}" by ${selectedAuthor}. It takes you on a deep, emotional journey that you will not want to put down. ✨`;
+
+        setAuthor(selectedAuthor);
+        setTags(generatedTags);
+        setDescription(generatedDesc);
+        onShowToast("✨ Local auto-fill generated creative placeholders.");
+      }
     }
   };
 
@@ -248,6 +262,35 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
     onClose();
   };
 
+  const DEFAULT_TAGS = [
+    "Fiction", "Non-fiction", "Romance 💕", "Thriller 🔪", "Self Help 🌱", 
+    "Mystery 🔍", "Fantasy 🔮", "Emotional 🥺", "Classic 📜", "Hindi Lit 🇮🇳", 
+    "Dystopian 💫", "Philosophy 🧠"
+  ];
+
+  const uniqueTagsList = [];
+  const seenTags = new Set();
+  [...DEFAULT_TAGS, ...(books ? books.flatMap(b => b.tags || []) : [])].forEach(t => {
+    const norm = t.trim().toLowerCase();
+    if (norm && !seenTags.has(norm)) {
+      seenTags.add(norm);
+      uniqueTagsList.push(t.trim());
+    }
+  });
+
+  const handleTagToggle = (tagText) => {
+    const currentTagsList = tags.split(',').map(t => t.trim()).filter(Boolean);
+    const exists = currentTagsList.some(t => t.toLowerCase() === tagText.toLowerCase());
+
+    let updatedTags;
+    if (exists) {
+      updatedTags = currentTagsList.filter(t => t.toLowerCase() !== tagText.toLowerCase());
+    } else {
+      updatedTags = [...currentTagsList, tagText];
+    }
+    setTags(updatedTags.join(', '));
+  };
+
   return (
     <div 
       className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 overflow-y-auto backdrop-blur-sm"
@@ -309,6 +352,28 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
               className="bg-white/[0.04] border border-[#d4a853]/20 rounded-lg p-2.5 text-[#e8dcc8] font-lora text-sm outline-none form-input-focus"
               required 
             />
+            {/* Tag Pills Selector */}
+            <div className="flex flex-wrap gap-1.5 mt-1.5 max-h-[110px] overflow-y-auto p-2 bg-white/[0.02] border border-white/5 rounded-lg select-none no-scrollbar">
+              {uniqueTagsList.map((tag) => {
+                const activeList = tags.split(',').map(t => t.trim()).filter(Boolean);
+                const isSelected = activeList.some(t => t.toLowerCase() === tag.toLowerCase());
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => handleTagToggle(tag)}
+                    className={`font-sans text-[10px] px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1 select-none
+                      ${isSelected 
+                        ? 'bg-[#d4a853]/15 border-[#d4a853] text-[#d4a853] font-semibold' 
+                        : 'bg-white/[0.02] border-white/10 text-[#a89880] hover:bg-white/[0.04] hover:text-[#e8dcc8]'}`}
+                  >
+                    <span>{isSelected ? '✓' : '+'}</span>
+                    {tag}
+                    {isSelected && <span className="text-[8px] opacity-60 ml-0.5">✕</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* PDF File upload */}

@@ -8,6 +8,7 @@ import BookDetailModal from './components/BookDetailModal';
 import AddBookModal from './components/AddBookModal';
 import ExploreAddModal from './components/ExploreAddModal';
 import Toast from './components/Toast';
+import ChatbotWidget from './components/ChatbotWidget';
 import PdfReaderModal from './components/PdfReaderModal';
 import { supabase, hasSupabase } from './supabaseClient';
 import { DEFAULT_BOOKS } from './defaultBooks';
@@ -508,6 +509,38 @@ export default function App() {
       if (activeFilter === 'read' || activeFilter === 'reading') {
         return getBookStatus(book) === activeFilter;
       }
+      if (activeFilter === 'fiction') {
+        const isNonFiction = book.genres?.includes('self-help') || 
+                             book.tags?.some(t => {
+                               const tl = t.toLowerCase();
+                               return tl.includes('non-fiction') || tl.includes('nonfiction') || tl.includes('self-help') || tl.includes('motivational') || tl.includes('philosophy') || tl.includes('autobiography');
+                             });
+        const hasFictionTag = book.tags?.some(t => t.toLowerCase() === 'fiction');
+        const hasNonFictionTag = book.tags?.some(t => {
+          const tl = t.toLowerCase();
+          return tl === 'non-fiction' || tl === 'nonfiction';
+        });
+
+        if (hasNonFictionTag) return false;
+        if (hasFictionTag) return true;
+        return !isNonFiction;
+      }
+      if (activeFilter === 'non-fiction') {
+        const isNonFiction = book.genres?.includes('self-help') || 
+                             book.tags?.some(t => {
+                               const tl = t.toLowerCase();
+                               return tl.includes('non-fiction') || tl.includes('nonfiction') || tl.includes('self-help') || tl.includes('motivational') || tl.includes('philosophy') || tl.includes('autobiography');
+                             });
+        const hasFictionTag = book.tags?.some(t => t.toLowerCase() === 'fiction');
+        const hasNonFictionTag = book.tags?.some(t => {
+          const tl = t.toLowerCase();
+          return tl === 'non-fiction' || tl === 'nonfiction';
+        });
+
+        if (hasFictionTag) return false;
+        if (hasNonFictionTag) return true;
+        return !!isNonFiction;
+      }
       return book.genres && book.genres.includes(activeFilter);
     }
   });
@@ -600,6 +633,8 @@ export default function App() {
             { id: 'all', label: 'All Books' },
             { id: 'read', label: 'Read ✓' },
             { id: 'reading', label: 'Currently Reading' },
+            { id: 'fiction', label: 'Fiction 📖' },
+            { id: 'non-fiction', label: 'Non-fiction 🧠' },
             { id: 'romance', label: 'Romance 💕' },
             { id: 'thriller', label: 'Thriller 🔪' },
             { id: 'self-help', label: 'Self Help 🌱' },
@@ -700,6 +735,7 @@ export default function App() {
         onEditBook={handleEditBook}
         bookToEdit={bookToEdit}
         onShowToast={showToast}
+        books={books}
       />
 
       <ExploreAddModal 
@@ -708,6 +744,9 @@ export default function App() {
         onClose={() => setExploreBookTitle('')}
         onAddBookClick={handleAddBookFromRecommendation}
       />
+
+      {/* AI Librarian Chatbot */}
+      <ChatbotWidget books={books} />
 
       {/* Success/Action Feedback Toast messages */}
       <Toast message={toastMessage} onClose={() => setToastMessage('')} />
