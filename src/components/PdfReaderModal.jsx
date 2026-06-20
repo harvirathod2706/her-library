@@ -1,48 +1,167 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getBookFileName } from './BookGrid';
 
 export default function PdfReaderModal({ book, onClose, onSaveProgress, onShowToast }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(100);
   const [pdfState, setPdfState] = useState('checking'); // 'checking', 'found', 'not_found'
-  
-  // A unique key we can increment to force-reload the iframe when jumping to page numbers
-  const [iframeKey, setIframeKey] = useState(0);
+  const [pdfDoc, setPdfDoc] = useState(null);
+  const [initialScrolled, setInitialScrolled] = useState(false);
+
+  const containerRef = useRef(null);
+  const pageRefs = useRef([]);
+  const renderedPages = useRef(new Set());
+  const scrollTimeout = useRef(null);
 
   const fileName = book ? getBookFileName(book.title) : '';
 
   useEffect(() => {
     if (!book) return;
     
-    // Set initial values
+    let isMounted = true;
     setCurrentPage(book.current_page || 1);
     setTotalPages(book.pages || 100);
-    
-    // Check if the PDF file exists in public/Books/
-    async function checkPdf() {
-      if (book.pdf_url) {
-        setPdfState('found');
-        return;
-      }
+    setInitialScrolled(false);
+    renderedPages.current.clear();
+    setPdfDoc(null);
+
+    async function loadPdf() {
       setPdfState('checking');
-      const pdfPath = `/Books/${fileName}.pdf`;
+      const basePdfPath = book.pdf_url || `/Books/${fileName}.pdf`;
       try {
-        const response = await fetch(pdfPath, { method: 'HEAD' });
-        const contentType = response.headers.get('content-type') || '';
+        // Load PDF.js dynamically if not loaded
+        if (typeof window.pdfjsLib === 'undefined') {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+            script.onload = () => {
+              window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+              resolve();
+            };
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+
+        const loadingTask = window.pdfjsLib.getDocument(basePdfPath);
+        const pdf = await loadingTask.promise;
         
-        if (response.ok && contentType.toLowerCase().includes('application/pdf')) {
+        if (isMounted) {
+          setPdfDoc(pdf);
+          setTotalPages(pdf.numPages);
           setPdfState('found');
-        } else {
+        }
+      } catch (err) {
+        console.error('Error loading PDF:', err);
+        if (isMounted) {
           setPdfState('not_found');
         }
-      } catch (e) {
-        // Fallback for CORS block in local file environments (try loading iframe)
-        setPdfState('found');
       }
     }
     
-    checkPdf();
+    loadPdf();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [book, fileName, book.pdf_url]);
+
+  // Handle scroll to detect current page
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    
+    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+    
+    scrollTimeout.current = setTimeout(() => {
+      const container = containerRef.current;
+      const containerTop = container.getBoundingClientRect().top;
+      
+      let activePage = 1;
+      let minDistance = Infinity;
+      
+      pageRefs.current.forEach((el, index) => {
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const distance = Math.abs(rect.top - containerTop);
+          if (distance < minDistance) {
+            minDistance = distance;
+            activePage = index + 1;
+          }
+        }
+      });
+      
+      if (activePage !== currentPage) {
+        setCurrentPage(activePage);
+      }
+    }, 50);
+  };
+
+  // Scroll to initial bookmarked page on load
+  useEffect(() => {
+    if (pdfState === 'found' && pdfDoc && !initialScrolled) {
+      const startPage = book.current_page || 1;
+      const timer = setTimeout(() => {
+        const targetEl = pageRefs.current[startPage - 1];
+        if (targetEl) {
+          targetEl.scrollIntoView({ block: 'start' });
+          setInitialScrolled(true);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [pdfState, pdfDoc, initialScrolled, book.current_page]);
+
+  // Lazy render pages as they enter view
+  useEffect(() => {
+    if (!pdfDoc || pdfState !== 'found') return;
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const pageNum = parseInt(entry.target.getAttribute('data-page'), 10);
+          if (pageNum && !renderedPages.current.has(pageNum)) {
+            renderedPages.current.add(pageNum);
+            renderPage(pageNum);
+          }
+        }
+      });
+    }, {
+      root: containerRef.current,
+      rootMargin: '400px 0px 400px 0px',
+      threshold: 0.01
+    });
+    
+    pageRefs.current.forEach(el => {
+      if (el) observer.observe(el);
+    });
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, [pdfDoc, pdfState]);
+
+  const renderPage = async (pageNum) => {
+    if (!pdfDoc) return;
+    try {
+      const page = await pdfDoc.getPage(pageNum);
+      const canvas = document.getElementById(`page-canvas-${pageNum}`);
+      if (!canvas) return;
+      
+      const context = canvas.getContext('2d');
+      const viewport = page.getViewport({ scale: 1.5 });
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport
+      };
+      
+      await page.render(renderContext).promise;
+    } catch (err) {
+      console.error(`Error rendering page ${pageNum}:`, err);
+    }
+  };
 
   if (!book) return null;
 
@@ -54,16 +173,13 @@ export default function PdfReaderModal({ book, onClose, onSaveProgress, onShowTo
     
     setCurrentPage(pageVal);
     setTotalPages(totalVal);
-    
-    // Sync database / localStorage
     onSaveProgress(book.id, pageVal, totalVal);
     
-    // Increment the iframeKey to force-reload the iframe with the new page hash
-    setIframeKey(prev => prev + 1);
+    const targetEl = pageRefs.current[pageVal - 1];
+    if (targetEl) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
-
-  const basePdfPath = book.pdf_url || `/Books/${fileName}.pdf`;
-  const pdfUrl = `${basePdfPath}#page=${currentPage}&toolbar=0&navpanes=0`;
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0d1117] flex flex-col select-none font-lora">
@@ -125,7 +241,7 @@ export default function PdfReaderModal({ book, onClose, onSaveProgress, onShowTo
       </header>
 
       {/* Reader Panel Viewport */}
-      <div className="flex-1 w-full bg-[#111827] relative flex items-center justify-center">
+      <div className="flex-1 w-full bg-[#111827] relative flex items-center justify-center overflow-hidden">
         
         {pdfState === 'checking' && (
           <div className="text-center font-lora italic text-[#a89880] text-sm animate-pulse">
@@ -134,12 +250,28 @@ export default function PdfReaderModal({ book, onClose, onSaveProgress, onShowTo
         )}
 
         {pdfState === 'found' && (
-          <iframe 
-            key={iframeKey}
-            className="w-full h-full border-none"
-            src={pdfUrl}
-            title={book.title}
-          />
+          <div 
+            ref={containerRef}
+            onScroll={handleScroll}
+            className="w-full h-full overflow-y-auto bg-[#0d1117] flex flex-col items-center gap-8 py-10 px-4 scroll-smooth"
+          >
+            {Array.from({ length: totalPages }, (_, i) => (
+              <div 
+                key={i} 
+                data-page={i + 1}
+                ref={el => pageRefs.current[i] = el}
+                className="w-full max-w-3xl aspect-[1/1.414] bg-[#0f172a] border border-white/5 rounded-lg flex flex-col items-center justify-center relative shadow-2xl p-1"
+              >
+                <canvas 
+                  id={`page-canvas-${i + 1}`}
+                  className="w-full h-auto bg-white rounded shadow-md max-h-[85vh] object-contain block"
+                />
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none -z-10 text-white/20 text-xs italic">
+                  Loading Page {i + 1}... 📖
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
         {pdfState === 'not_found' && (
