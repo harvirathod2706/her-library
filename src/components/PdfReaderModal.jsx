@@ -20,6 +20,10 @@ export default function PdfReaderModal({ book, onClose, onSaveProgress, onShowTo
     
     // Check if the PDF file exists in public/Books/
     async function checkPdf() {
+      if (book.pdf_url) {
+        setPdfState('found');
+        return;
+      }
       setPdfState('checking');
       const pdfPath = `/Books/${fileName}.pdf`;
       try {
@@ -38,7 +42,7 @@ export default function PdfReaderModal({ book, onClose, onSaveProgress, onShowTo
     }
     
     checkPdf();
-  }, [book, fileName]);
+  }, [book, fileName, book.pdf_url]);
 
   if (!book) return null;
 
@@ -58,7 +62,8 @@ export default function PdfReaderModal({ book, onClose, onSaveProgress, onShowTo
     setIframeKey(prev => prev + 1);
   };
 
-  const pdfUrl = `/Books/${fileName}.pdf#page=${currentPage}&toolbar=0&navpanes=0`;
+  const basePdfPath = book.pdf_url || `/Books/${fileName}.pdf`;
+  const pdfUrl = `${basePdfPath}#page=${currentPage}&toolbar=0&navpanes=0`;
 
   return (
     <div className="fixed inset-0 z-50 bg-[#0d1117] flex flex-col select-none font-lora">

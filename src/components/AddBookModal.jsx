@@ -44,17 +44,86 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onShowToast }
   const [tags, setTags] = useState('');
   const [description, setDescription] = useState('');
   const [coverBase64, setCoverBase64] = useState('');
+  const [pages, setPages] = useState(350);
+  const [coverFile, setCoverFile] = useState(null);
+  const [pdfFile, setPdfFile] = useState(null);
 
   if (!isOpen) return null;
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setCoverFile(file);
       const reader = new FileReader();
       reader.onload = (event) => {
         setCoverBase64(event.target.result);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePdfChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setPdfFile(file);
+      onShowToast("Analyzing PDF page count... 🔍");
+      
+      const readPages = () => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = async function() {
+            try {
+              const typedarray = new Uint8Array(this.result);
+              
+              if (typeof window.pdfjsLib === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+                script.onload = async () => {
+                  window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+                  try {
+                    const pdf = await window.pdfjsLib.getDocument({ data: typedarray }).promise;
+                    resolve(pdf.numPages);
+                  } catch (e) {
+                    console.error("PDF.js parse failed:", e);
+                    resolve(estimatePdfPages(typedarray));
+                  }
+                };
+                script.onerror = () => {
+                  resolve(estimatePdfPages(typedarray));
+                };
+                document.head.appendChild(script);
+              } else {
+                const pdf = await window.pdfjsLib.getDocument({ data: typedarray }).promise;
+                resolve(pdf.numPages);
+              }
+            } catch (err) {
+              console.error("PDF.js load failed, falling back to estimation:", err);
+              resolve(estimatePdfPages(new Uint8Array(this.result)));
+            }
+          };
+          reader.readAsArrayBuffer(file);
+        });
+      };
+
+      const estimatePdfPages = (uint8Array) => {
+        try {
+          const text = new TextDecoder('ascii').decode(uint8Array);
+          const matches = [...text.matchAll(/\/Count\s+(\d+)/g)];
+          if (matches.length > 0) {
+            const counts = matches.map(m => parseInt(m[1], 10)).filter(c => !isNaN(c) && c < 50000);
+            if (counts.length > 0) {
+              return Math.max(...counts);
+            }
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        return 350;
+      };
+
+      const pdfPages = await readPages();
+      setPages(pdfPages);
+      onShowToast(`✨ Successfully read PDF: ${pdfPages} pages total!`);
     }
   };
 
@@ -133,13 +202,13 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onShowToast }
       genres: genres,
       tags: tagList,
       note: description.trim(),
-      pages: 350,
+      pages: pages,
       similar: [],
       custom_cover: coverBase64 || null,
-      current_page: status === "read" ? 350 : 0
+      current_page: status === "read" ? pages : 0
     };
 
-    onAddBook(newBook);
+    onAddBook(newBook, coverFile, pdfFile);
     handleClose();
   };
 
@@ -148,7 +217,10 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onShowToast }
     setAuthor('');
     setTags('');
     setDescription('');
+    setPages(350);
     setCoverBase64('');
+    setCoverFile(null);
+    setPdfFile(null);
     onClose();
   };
 
@@ -211,6 +283,45 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onShowToast }
               onChange={(e) => setTags(e.target.value)}
               placeholder="e.g. Psychological Thriller, Dark, Suspense" 
               className="bg-white/[0.04] border border-[#d4a853]/20 rounded-lg p-2.5 text-[#e8dcc8] font-lora text-sm outline-none form-input-focus"
+              required 
+            />
+          </div>
+
+          {/* PDF File upload */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[#a89880] font-medium tracking-wide">Book PDF File</label>
+            <div className="flex items-center gap-4">
+              <input 
+                type="file" 
+                id="add-pdf-file" 
+                accept="application/pdf" 
+                onChange={handlePdfChange}
+                className="hidden" 
+              />
+              <button 
+                type="button" 
+                onClick={() => document.getElementById('add-pdf-file').click()}
+                className="bg-white/[0.04] border border-[#d4a853]/30 hover:bg-[#d4a853]/5 px-4 py-2 rounded-lg text-[#d4a853] font-bold transition-all cursor-pointer"
+              >
+                📁 Choose PDF
+              </button>
+              
+              <div className="text-xs text-[#a89880] truncate max-w-[200px]">
+                {pdfFile ? pdfFile.name : "No PDF selected"}
+              </div>
+            </div>
+          </div>
+
+          {/* Pages count */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[#a89880] font-medium tracking-wide">Total Pages</label>
+            <input 
+              type="number" 
+              value={pages}
+              onChange={(e) => setPages(parseInt(e.target.value, 10) || 1)}
+              placeholder="350" 
+              className="bg-white/[0.04] border border-[#d4a853]/20 rounded-lg p-2.5 text-[#e8dcc8] font-lora text-sm outline-none form-input-focus"
+              min={1}
               required 
             />
           </div>

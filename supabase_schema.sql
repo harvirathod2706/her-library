@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS books (
   pages integer NOT NULL DEFAULT 100,
   similar text[] NOT NULL DEFAULT '{}',
   custom_cover text,
+  pdf_url text,
   current_page integer NOT NULL DEFAULT 0,
   is_hidden boolean NOT NULL DEFAULT false,
   is_deleted boolean NOT NULL DEFAULT false,
@@ -72,3 +73,37 @@ INSERT INTO books (id, title, author, status, icon, theme, genres, tags, note, p
 
 -- Adjust the sequence value to restart at 39
 SELECT setval(pg_get_serial_sequence('books', 'id'), coalesce(max(id), 0) + 1, false) FROM books;
+
+-- 3. Migration for existing books table
+ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_url text;
+
+-- 4. Create storage buckets
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('covers', 'covers', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('books', 'books', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- 5. Set up Row Level Security policies for storage.objects
+DROP POLICY IF EXISTS "Allow public insert to covers" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public select from covers" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public update to covers" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public delete from covers" ON storage.objects;
+
+DROP POLICY IF EXISTS "Allow public insert to books" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public select from books" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public update to books" ON storage.objects;
+DROP POLICY IF EXISTS "Allow public delete from books" ON storage.objects;
+
+CREATE POLICY "Allow public insert to covers" ON storage.objects FOR INSERT TO public WITH CHECK (bucket_id = 'covers');
+CREATE POLICY "Allow public select from covers" ON storage.objects FOR SELECT TO public USING (bucket_id = 'covers');
+CREATE POLICY "Allow public update to covers" ON storage.objects FOR UPDATE TO public USING (bucket_id = 'covers');
+CREATE POLICY "Allow public delete from covers" ON storage.objects FOR DELETE TO public USING (bucket_id = 'covers');
+
+CREATE POLICY "Allow public insert to books" ON storage.objects FOR INSERT TO public WITH CHECK (bucket_id = 'books');
+CREATE POLICY "Allow public select from books" ON storage.objects FOR SELECT TO public USING (bucket_id = 'books');
+CREATE POLICY "Allow public update to books" ON storage.objects FOR UPDATE TO public USING (bucket_id = 'books');
+CREATE POLICY "Allow public delete from books" ON storage.objects FOR DELETE TO public USING (bucket_id = 'books');
+

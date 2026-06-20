@@ -245,29 +245,90 @@ export default function App() {
     }
   };
 
-  const handleAddBook = async (newBookData) => {
+  const handleAddBook = async (newBookData, coverFile, pdfFile) => {
     const tempId = Date.now();
     const fullNewBook = { ...newBookData, id: tempId };
     
+    // Optimistically add to state
     const updated = [...books, fullNewBook];
     syncBooksState(updated);
-    showToast(`✨ Added "${newBookData.title}" to your library!`);
+    showToast(`✨ Adding "${newBookData.title}" to your library...`);
 
     // Supabase update
     if (hasSupabase) {
       try {
+        let customCoverUrl = newBookData.custom_cover;
+        let pdfUrl = null;
+
+        // Upload helper
+        const uploadFile = async (bucket, file) => {
+          const fileExt = file.name.split('.').pop();
+          const sanitizedTitle = newBookData.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          const fileName = `${sanitizedTitle}_${Date.now()}.${fileExt}`;
+          
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .upload(fileName, file, {
+              cacheControl: '3600',
+              upsert: false
+            });
+            
+          if (error) throw error;
+          
+          const { data: publicUrlData } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(fileName);
+            
+          return publicUrlData.publicUrl;
+        };
+
+        // 1. Upload cover if provided
+        if (coverFile) {
+          showToast(`📸 Uploading cover image for "${newBookData.title}"...`);
+          try {
+            customCoverUrl = await uploadFile('covers', coverFile);
+          } catch (coverErr) {
+            console.error('Cover image upload failed:', coverErr);
+            showToast('⚠️ Cover upload failed, using fallback.');
+          }
+        }
+
+        // 2. Upload PDF if provided
+        if (pdfFile) {
+          showToast(`📁 Uploading PDF file for "${newBookData.title}"...`);
+          try {
+            pdfUrl = await uploadFile('books', pdfFile);
+          } catch (pdfErr) {
+            console.error('PDF upload failed:', pdfErr);
+            showToast('⚠️ PDF upload failed.');
+          }
+        }
+
+        // Create the updated row payload
+        const finalBookData = {
+          ...newBookData,
+          custom_cover: customCoverUrl,
+          pdf_url: pdfUrl
+        };
+
         const { data, error } = await supabase
           .from('books')
-          .insert([newBookData])
+          .insert([finalBookData])
           .select();
+
+        if (error) throw error;
+
         if (data && data[0]) {
-          // Replace tempId with the real database generated ID
-          const syncIdList = books.map((b) => b.id === tempId ? data[0] : b);
-          setBooks(syncIdList);
+          // Replace tempId with the real database generated ID and updated remote URLs
+          setBooks((prev) => prev.map((b) => (b.id === tempId ? data[0] : b)));
+          showToast(`✨ "${newBookData.title}" successfully added and synced!`);
         }
       } catch (err) {
         console.error('Supabase add failed:', err);
+        showToast('⚠️ Failed to add book to cloud database.');
       }
+    } else {
+      showToast(`✨ Added "${newBookData.title}" to local library!`);
     }
   };
 
