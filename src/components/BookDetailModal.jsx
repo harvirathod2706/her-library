@@ -8,13 +8,11 @@ export default function BookDetailModal({
   onToggleHide, 
   onDeleteBook, 
   onRecommendClick,
+  onReadBook,
   isHidden 
 }) {
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(100);
-  
-  // PDF state: 'closed', 'checking', 'found', 'not_found'
-  const [pdfState, setPdfState] = useState('closed');
   
   // Image cover fallback states
   const fileName = book ? getBookFileName(book.title) : '';
@@ -28,7 +26,6 @@ export default function BookDetailModal({
     // Set initial progress page inputs
     setCurrentPage(book.current_page || 0);
     setTotalPages(book.pages || 100);
-    setPdfState('closed');
 
     // Reset image cover fallbacks
     setImgSrc(book.custom_cover || `/Covers/${fileName}.jpg`);
@@ -58,25 +55,6 @@ export default function BookDetailModal({
     const cur = parseInt(currentPage, 10) || 0;
     const tot = parseInt(totalPages, 10) || book.pages || 100;
     onSaveProgress(book.id, cur, tot);
-  };
-
-  const handleReadClick = async () => {
-    setPdfState('checking');
-    const pdfPath = `/Books/${fileName}.pdf`;
-    
-    try {
-      const response = await fetch(pdfPath, { method: 'HEAD' });
-      const contentType = response.headers.get('content-type') || '';
-      
-      if (response.ok && contentType.toLowerCase().includes('application/pdf')) {
-        setPdfState('found');
-      } else {
-        setPdfState('not_found');
-      }
-    } catch (e) {
-      // Fallback for CORS block in local file environment (will default to loading the iframe)
-      setPdfState('found');
-    }
   };
 
   const calculatedPct = Math.min(100, Math.round((currentPage / totalPages) * 100)) || 0;
@@ -194,42 +172,12 @@ export default function BookDetailModal({
 
         {/* Read Book PDF Section */}
         <div className="border-t border-[#d4a853]/15 pt-5 flex flex-col items-center">
-          {pdfState === 'closed' && (
-            <button 
-              onClick={handleReadClick}
-              className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-[#7c2d3a] to-[#c4869a] rounded-lg text-white font-sans text-xs font-bold shadow-md cursor-pointer hover:opacity-90 transition-opacity"
-            >
-              <span>📖</span> Read Book
-            </button>
-          )}
-
-          {pdfState === 'checking' && (
-            <div className="text-xs text-[#a89880] italic animate-pulse py-2">
-              Locating book PDF... 🔍
-            </div>
-          )}
-
-          {pdfState === 'found' && (
-            <div className="w-full mt-2">
-              <iframe 
-                className="pdf-frame w-full"
-                src={`/Books/${fileName}.pdf#toolbar=0&navpanes=0`} 
-                title={book.title}
-              />
-            </div>
-          )}
-
-          {pdfState === 'not_found' && (
-            <div className="text-center p-5 border border-dashed border-[#d4a853]/35 rounded-xl w-full bg-black/20">
-              <div className="text-[#d4a853] font-bold text-xs mb-1">📁 PDF Not Found</div>
-              <p className="text-[10px] text-[#a89880] leading-relaxed">
-                To read this book, place its PDF file in the <code className="bg-[#000]/30 px-1 py-0.5 rounded text-[#e8b4c0]">public/Books</code> folder as:
-              </p>
-              <code className="block bg-[#000]/40 px-3 py-1.5 rounded-md text-[#e8b4c0] font-mono text-[10px] mt-2 select-all break-all border border-white/5">
-                Books/{fileName}.pdf
-              </code>
-            </div>
-          )}
+          <button 
+            onClick={onReadBook}
+            className="flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-[#7c2d3a] to-[#c4869a] rounded-lg text-white font-sans text-xs font-bold shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+          >
+            <span>📖</span> Read Book
+          </button>
         </div>
 
         {/* Recommendations Section */}

@@ -8,6 +8,7 @@ import BookDetailModal from './components/BookDetailModal';
 import AddBookModal from './components/AddBookModal';
 import ExploreAddModal from './components/ExploreAddModal';
 import Toast from './components/Toast';
+import PdfReaderModal from './components/PdfReaderModal';
 import { supabase, hasSupabase } from './supabaseClient';
 import { DEFAULT_BOOKS } from './defaultBooks';
 
@@ -22,6 +23,7 @@ export default function App() {
   
   // Modals state
   const [selectedBook, setSelectedBook] = useState(null);
+  const [activeReadingBook, setActiveReadingBook] = useState(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [exploreBookTitle, setExploreBookTitle] = useState('');
   
@@ -156,6 +158,16 @@ export default function App() {
     // Recalculate percent for toast message
     const pct = Math.min(100, Math.round((current / total) * 100));
     showToast(`✨ Saved! Page ${current} of ${total} — ${pct}% done`);
+
+    // Sync active reading book state in real-time if open in the reader
+    if (activeReadingBook && activeReadingBook.id === id) {
+      setActiveReadingBook(prev => ({
+        ...prev,
+        current_page: current,
+        pages: total,
+        status: current === 0 ? 'want' : (current >= total ? 'read' : 'reading')
+      }));
+    }
 
     // Supabase update
     if (hasSupabase) {
@@ -462,7 +474,20 @@ export default function App() {
           onToggleHide={handleToggleHide}
           onDeleteBook={handleDeleteBook}
           onRecommendClick={handleRecommendClick}
+          onReadBook={() => {
+            setActiveReadingBook(selectedBook);
+            setSelectedBook(null);
+          }}
           isHidden={selectedBook.is_hidden}
+        />
+      )}
+
+      {activeReadingBook && (
+        <PdfReaderModal 
+          book={activeReadingBook}
+          onClose={() => setActiveReadingBook(null)}
+          onSaveProgress={handleSaveProgress}
+          onShowToast={showToast}
         />
       )}
 
