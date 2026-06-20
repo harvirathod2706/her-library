@@ -38,7 +38,7 @@ const POPULAR_BOOKS_AUTO_FILL = {
   }
 };
 
-export default function AddBookModal({ isOpen, onClose, onAddBook, onShowToast }) {
+export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, bookToEdit, onShowToast }) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [tags, setTags] = useState('');
@@ -47,6 +47,26 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onShowToast }
   const [pages, setPages] = useState(350);
   const [coverFile, setCoverFile] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
+
+  useEffect(() => {
+    if (bookToEdit) {
+      setTitle(bookToEdit.title || '');
+      setAuthor(bookToEdit.author || '');
+      setTags(bookToEdit.tags ? bookToEdit.tags.join(', ') : '');
+      setDescription(bookToEdit.note || '');
+      setPages(bookToEdit.pages || 350);
+      setCoverBase64(bookToEdit.custom_cover || '');
+    } else {
+      setTitle('');
+      setAuthor('');
+      setTags('');
+      setDescription('');
+      setPages(350);
+      setCoverBase64('');
+    }
+    setCoverFile(null);
+    setPdfFile(null);
+  }, [bookToEdit, isOpen]);
 
   if (!isOpen) return null;
 
@@ -193,22 +213,26 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onShowToast }
       genres.push("literary");
     }
 
-    const newBook = {
+    const finalBook = {
       title: title.trim(),
       author: author.trim(),
       status: status,
-      icon: "📚",
-      theme: theme,
+      icon: bookToEdit ? bookToEdit.icon : "📚",
+      theme: bookToEdit ? bookToEdit.theme : theme,
       genres: genres,
       tags: tagList,
       note: description.trim(),
       pages: pages,
-      similar: [],
+      similar: bookToEdit ? bookToEdit.similar : [],
       custom_cover: coverBase64 || null,
-      current_page: status === "read" ? pages : 0
+      current_page: bookToEdit ? Math.min(pages, bookToEdit.current_page) : (status === "read" ? pages : 0)
     };
 
-    onAddBook(newBook, coverFile, pdfFile);
+    if (bookToEdit) {
+      onEditBook(bookToEdit.id, finalBook, coverFile, pdfFile);
+    } else {
+      onAddBook(finalBook, coverFile, pdfFile);
+    }
     handleClose();
   };
 
@@ -241,7 +265,7 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onShowToast }
         {/* Modal Header */}
         <div>
           <h3 className="font-playfair text-xl md:text-2xl font-semibold text-[#e8dcc8]">
-            ✨ Add a New Book
+            {bookToEdit ? '✏️ Edit Book Details' : '✨ Add a New Book'}
           </h3>
           <div className="w-[40px] h-[2px] bg-gradient-to-r from-[#d4a853] to-transparent mt-2 mb-4" />
         </div>
@@ -382,7 +406,7 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onShowToast }
               type="submit"
               className="bg-gradient-to-r from-[#7c2d3a] to-[#c4869a] border-none px-6 py-2 rounded-lg text-white font-bold transition-all shadow-md hover:opacity-95 cursor-pointer"
             >
-              💾 Add Book
+              {bookToEdit ? '💾 Save Changes' : '💾 Add Book'}
             </button>
           </div>
         </form>

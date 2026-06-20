@@ -9,6 +9,7 @@ export default function BookDetailModal({
   onDeleteBook, 
   onRecommendClick,
   onReadBook,
+  onEditClick,
   isHidden 
 }) {
   const [currentPage, setCurrentPage] = useState(0);
@@ -204,16 +205,23 @@ export default function BookDetailModal({
         <div className="border-t border-[#d4a853]/15 pt-5 flex justify-between gap-4 font-sans text-xs">
           <button 
             onClick={() => onToggleHide(book.id)}
-            className="flex items-center gap-1.5 text-[#a89880] hover:text-white bg-white/[0.03] border border-white/5 hover:border-white/20 px-4 py-2 rounded-lg cursor-pointer transition-colors"
+            className="flex items-center gap-1.5 text-[#a89880] hover:text-white bg-white/[0.03] border border-white/5 hover:border-white/20 px-4 py-2 rounded-lg cursor-pointer transition-colors animate-all"
           >
-            <span>{isHidden ? '👁️' : '🙈'}</span> {isHidden ? 'Unhide Book' : 'Hide Book'}
+            <span>{isHidden ? '👁️' : '🙈'}</span> {isHidden ? 'Unhide' : 'Hide'}
+          </button>
+
+          <button 
+            onClick={onEditClick}
+            className="flex items-center gap-1.5 text-[#d4a853]/90 hover:text-[#d4a853] bg-[#d4a853]/5 border border-[#d4a853]/10 hover:border-[#d4a853]/35 px-4 py-2 rounded-lg cursor-pointer transition-colors"
+          >
+            <span>✏️</span> Edit Book
           </button>
           
           <button 
             onClick={() => onDeleteBook(book.id, book.title)}
             className="flex items-center gap-1.5 text-[#e05252]/80 hover:text-[#e05252] bg-[#e05252]/5 border border-[#e05252]/10 hover:border-[#e05252]/30 px-4 py-2 rounded-lg cursor-pointer transition-colors"
           >
-            <span>🗑️</span> Delete Book
+            <span>🗑️</span> Delete
           </button>
         </div>
       </div>

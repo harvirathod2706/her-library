@@ -26,6 +26,7 @@ export default function App() {
   const [activeReadingBook, setActiveReadingBook] = useState(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [exploreBookTitle, setExploreBookTitle] = useState('');
+  const [bookToEdit, setBookToEdit] = useState(null);
   
   // Particles state
   const [bgParticles, setBgParticles] = useState([]);
@@ -349,6 +350,121 @@ export default function App() {
     }
   };
 
+  const handleEditBook = async (id, updatedBookData, coverFile, pdfFile) => {
+    const targetBook = books.find((b) => b.id === id);
+    if (!targetBook) return;
+
+    let localCover = updatedBookData.custom_cover;
+    let localPdf = targetBook.pdf_url;
+
+    let fullUpdatedBook = { 
+      ...targetBook, 
+      ...updatedBookData,
+      custom_cover: localCover,
+      pdf_url: localPdf
+    };
+
+    setBooks((prev) => prev.map((b) => (b.id === id ? fullUpdatedBook : b)));
+    showToast(`✨ Saving changes for "${updatedBookData.title}"...`);
+
+    if (hasSupabase) {
+      try {
+        let customCoverUrl = targetBook.custom_cover;
+        let pdfUrl = targetBook.pdf_url;
+
+        const uploadFile = async (bucket, file) => {
+          const fileExt = file.name.split('.').pop();
+          const sanitizedTitle = updatedBookData.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          const fileName = `${sanitizedTitle}_${Date.now()}.${fileExt}`;
+          
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .upload(fileName, file, {
+              cacheControl: '3600',
+              upsert: false
+            });
+            
+          if (error) throw error;
+          
+          const { data: publicUrlData } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(fileName);
+            
+          return publicUrlData.publicUrl;
+        };
+
+        if (coverFile) {
+          showToast(`📸 Uploading new cover image for "${updatedBookData.title}"...`);
+          try {
+            const oldCover = targetBook.custom_cover;
+            customCoverUrl = await uploadFile('covers', coverFile);
+            
+            if (oldCover && oldCover.includes('/storage/v1/object/public/covers/')) {
+              const oldFileName = oldCover.split('/covers/').pop();
+              if (oldFileName) {
+                await supabase.storage.from('covers').remove([oldFileName]);
+              }
+            }
+          } catch (coverErr) {
+            console.error('Cover image upload failed:', coverErr);
+            showToast('⚠️ Cover upload failed.');
+          }
+        }
+
+        if (pdfFile) {
+          showToast(`📁 Uploading new PDF file for "${updatedBookData.title}"...`);
+          try {
+            const oldPdf = targetBook.pdf_url;
+            pdfUrl = await uploadFile('books', pdfFile);
+            
+            if (oldPdf && oldPdf.includes('/storage/v1/object/public/books/')) {
+              const oldFileName = oldPdf.split('/books/').pop();
+              if (oldFileName) {
+                await supabase.storage.from('books').remove([oldFileName]);
+              }
+            }
+          } catch (pdfErr) {
+            console.error('PDF upload failed:', pdfErr);
+            showToast('⚠️ PDF upload failed.');
+          }
+        }
+
+        const finalBookData = {
+          ...updatedBookData,
+          custom_cover: customCoverUrl,
+          pdf_url: pdfUrl
+        };
+
+        const { data, error } = await supabase
+          .from('books')
+          .update(finalBookData)
+          .eq('id', id)
+          .select();
+
+        if (error) throw error;
+
+        if (data && data[0]) {
+          setBooks((prev) => prev.map((b) => (b.id === id ? data[0] : b)));
+          showToast(`✨ "${updatedBookData.title}" successfully updated!`);
+        }
+      } catch (err) {
+        console.error('Supabase update failed:', err);
+        showToast('⚠️ Failed to save changes in cloud database.');
+      }
+    } else {
+      const finalUpdatedLocal = {
+        ...targetBook,
+        ...updatedBookData
+      };
+      setBooks((prev) => {
+        const list = prev.map((b) => (b.id === id ? finalUpdatedLocal : b));
+        localStorage.setItem('her_library_books', JSON.stringify(list));
+        return list;
+      });
+      showToast(`✨ Saved changes for "${updatedBookData.title}" locally!`);
+    }
+  };
+
   // Recommendation chip handler
   const handleRecommendClick = (title) => {
     const found = books.find(
@@ -556,6 +672,11 @@ export default function App() {
             setActiveReadingBook(selectedBook);
             setSelectedBook(null);
           }}
+          onEditClick={() => {
+            setBookToEdit(selectedBook);
+            setSelectedBook(null);
+            setIsAddOpen(true);
+          }}
           isHidden={selectedBook.is_hidden}
         />
       )}
@@ -571,8 +692,13 @@ export default function App() {
 
       <AddBookModal 
         isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
+        onClose={() => {
+          setIsAddOpen(false);
+          setBookToEdit(null);
+        }}
         onAddBook={handleAddBook}
+        onEditBook={handleEditBook}
+        bookToEdit={bookToEdit}
         onShowToast={showToast}
       />
 
