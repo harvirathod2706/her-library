@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS books (
   tags text[] NOT NULL DEFAULT '{}',
   note text,
   pages integer NOT NULL DEFAULT 100,
-  similar text[] NOT NULL DEFAULT '{}',
+  "similar" text[] NOT NULL DEFAULT '{}',
   custom_cover text,
   pdf_url text,
   current_page integer NOT NULL DEFAULT 0,
@@ -31,7 +31,7 @@ CREATE POLICY "Enable update access for all users" ON books FOR UPDATE USING (tr
 CREATE POLICY "Enable delete access for all users" ON books FOR DELETE USING (true);
 
 -- 2. Insert all 38 default books
-INSERT INTO books (id, title, author, status, icon, theme, genres, tags, note, pages, similar, current_page, is_hidden, is_deleted) VALUES
+INSERT INTO books (id, title, author, status, icon, theme, genres, tags, note, pages, "similar", current_page, is_hidden, is_deleted) VALUES
 (1, 'It Ends With Us', 'Colleen Hoover', 'read', '🌻', 'theme-rose', ARRAY['romance', 'literary'], ARRAY['Contemporary Romance', 'Emotional', 'Powerful'], 'One of those books that breaks you open and puts you back together differently.', 384, ARRAY['Ugly Love', 'November 9', 'Reminders of Him'], 384, false, false),
 (2, 'A Thousand Splendid Suns', 'Khaled Hosseini', 'read', '🌙', 'theme-navy', ARRAY['literary'], ARRAY['Historical Fiction', 'Heartbreaking', 'Beautiful'], 'A testament to the resilience of women — a book that will never leave you.', 432, ARRAY['The Kite Runner', 'And the Mountains Echoed', 'Pachinko'], 432, false, false),
 (3, 'Ugly Love', 'Colleen Hoover', 'read', '💔', 'theme-wine', ARRAY['romance'], ARRAY['Romance', 'Angst', 'Contemporary'], 'The kind of love that hurts beautifully. Classic CoHo.', 322, ARRAY['It Ends With Us', 'November 9', 'People We Meet on Vacation'], 322, false, false),
