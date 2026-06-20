@@ -220,12 +220,8 @@ export default function App() {
 
   const handleDeleteBook = async (id, title) => {
     if (confirm(`Are you sure you want to delete "${title}"?`)) {
-      const updated = books.map((b) => {
-        if (b.id === id) {
-          return { ...b, is_deleted: true };
-        }
-        return b;
-      });
+      // Physically remove from local state
+      const updated = books.filter((b) => b.id !== id);
 
       syncBooksState(updated);
       showToast(`"${title}" has been deleted from your library 🗑️`);
@@ -234,12 +230,33 @@ export default function App() {
       // Supabase update
       if (hasSupabase) {
         try {
-          await supabase
+          const bookToDelete = books.find(b => b.id === id);
+          if (bookToDelete) {
+            // Delete cover from covers storage if it's a Supabase URL
+            if (bookToDelete.custom_cover && bookToDelete.custom_cover.includes('/storage/v1/object/public/covers/')) {
+              const fileName = bookToDelete.custom_cover.split('/covers/').pop();
+              if (fileName) {
+                await supabase.storage.from('covers').remove([fileName]);
+              }
+            }
+            // Delete PDF from books storage if it's a Supabase URL
+            if (bookToDelete.pdf_url && bookToDelete.pdf_url.includes('/storage/v1/object/public/books/')) {
+              const fileName = bookToDelete.pdf_url.split('/books/').pop();
+              if (fileName) {
+                await supabase.storage.from('books').remove([fileName]);
+              }
+            }
+          }
+
+          const { error } = await supabase
             .from('books')
-            .update({ is_deleted: true })
+            .delete()
             .eq('id', id);
+
+          if (error) throw error;
         } catch (err) {
           console.error('Supabase delete failed:', err);
+          showToast('⚠️ Failed to delete book from cloud database.');
         }
       }
     }
