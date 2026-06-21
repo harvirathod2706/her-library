@@ -33,6 +33,38 @@ export default function App() {
     return cached ? JSON.parse(cached) : [];
   });
 
+  const DEFAULT_SERIES_MAPPING = {
+    7: "Shatter Me",
+    8: "The Inheritance Games",
+    12: "A Good Girl's Guide to Murder",
+    13: "A Good Girl's Guide to Murder",
+    14: "A Good Girl's Guide to Murder",
+    26: "The Hidden Hindu"
+  };
+
+  const [seriesMapping, setSeriesMapping] = useState(() => {
+    const cached = localStorage.getItem('her_library_series_mapping');
+    if (cached) return JSON.parse(cached);
+    localStorage.setItem('her_library_series_mapping', JSON.stringify(DEFAULT_SERIES_MAPPING));
+    return DEFAULT_SERIES_MAPPING;
+  });
+
+  const [seriesOrder, setSeriesOrder] = useState(() => {
+    const cached = localStorage.getItem('her_library_series_order');
+    if (cached) return JSON.parse(cached);
+    const defaults = ["Shatter Me", "The Inheritance Games", "A Good Girl's Guide to Murder", "The Hidden Hindu"];
+    localStorage.setItem('her_library_series_order', JSON.stringify(defaults));
+    return defaults;
+  });
+
+  const applySeriesMapping = (booksList, mapping = seriesMapping) => {
+    return booksList.map(b => ({
+      ...b,
+      series_name: mapping[b.id] || null,
+      is_series: !!mapping[b.id]
+    }));
+  };
+
   const [isCreateSeriesOpen, setIsCreateSeriesOpen] = useState(false);
 
   const [seriesToDelete, setSeriesToDelete] = useState(null);
@@ -77,7 +109,9 @@ export default function App() {
           if (error) throw error;
 
           if (data && data.length > 0) {
-            setBooks(data);
+            const mappedData = applySeriesMapping(data);
+            setBooks(mappedData);
+            localStorage.setItem('her_library_books', JSON.stringify(mappedData));
           } else {
             // DB is empty, auto-seed with DEFAULT_BOOKS
             const { error: seedError } = await supabase.from('books').insert(DEFAULT_BOOKS);
@@ -87,7 +121,11 @@ export default function App() {
               .from('books')
               .select('*')
               .order('id', { ascending: true });
-            if (reloaded) setBooks(reloaded);
+            if (reloaded) {
+              const mappedData = applySeriesMapping(reloaded);
+              setBooks(mappedData);
+              localStorage.setItem('her_library_books', JSON.stringify(mappedData));
+            }
           }
         } catch (err) {
           console.error('Supabase fetch failed, falling back to LocalStorage:', err);
@@ -130,18 +168,16 @@ export default function App() {
   const loadLocalBooks = () => {
     const cached = localStorage.getItem('her_library_books');
     if (cached) {
-      setBooks(JSON.parse(cached));
+      setBooks(applySeriesMapping(JSON.parse(cached)));
     } else {
       localStorage.setItem('her_library_books', JSON.stringify(DEFAULT_BOOKS));
-      setBooks(DEFAULT_BOOKS);
+      setBooks(applySeriesMapping(DEFAULT_BOOKS));
     }
   };
 
   const syncBooksState = (updatedBooks) => {
     setBooks(updatedBooks);
-    if (!hasSupabase) {
-      localStorage.setItem('her_library_books', JSON.stringify(updatedBooks));
-    }
+    localStorage.setItem('her_library_books', JSON.stringify(updatedBooks));
   };
 
   const showToast = (msg) => {
@@ -338,6 +374,12 @@ export default function App() {
   };
 
   const handleDeleteSeries = async (seriesName, option) => {
+    setSeriesOrder((prev) => {
+      const updated = prev.filter(s => s !== seriesName);
+      localStorage.setItem('her_library_series_order', JSON.stringify(updated));
+      return updated;
+    });
+
     if (option === 'metadata_only') {
       const updated = books.map((b) => {
         const match = b.series_name === seriesName || 
@@ -350,6 +392,17 @@ export default function App() {
       });
       syncBooksState(updated);
       showToast(`Series metadata removed. Books kept! 📦`);
+      
+      const updatedMapping = { ...seriesMapping };
+      books.forEach(b => {
+        const match = b.series_name === seriesName || 
+          (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
+        if (match) {
+          delete updatedMapping[b.id];
+        }
+      });
+      setSeriesMapping(updatedMapping);
+      localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
 
       if (hasSupabase) {
         try {
@@ -358,7 +411,7 @@ export default function App() {
             const updatedTags = (book.tags || []).filter(t => t.toLowerCase() !== 'series');
             await supabase
               .from('books')
-              .update({ series_name: null, tags: updatedTags, is_series: false })
+              .update({ tags: updatedTags })
               .eq('id', book.id);
           }
         } catch (err) {
@@ -373,13 +426,20 @@ export default function App() {
       });
       syncBooksState(updated);
       showToast(`Series and all its books deleted successfully! 🗑️`);
+
+      const updatedMapping = { ...seriesMapping };
+      const booksToDelete = books.filter((b) => {
+        return b.series_name === seriesName || 
+          (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
+      });
+      booksToDelete.forEach(b => {
+        delete updatedMapping[b.id];
+      });
+      setSeriesMapping(updatedMapping);
+      localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
       
       if (hasSupabase) {
         try {
-          const booksToDelete = books.filter((b) => {
-            return b.series_name === seriesName || 
-              (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
-          });
           const deleteIds = booksToDelete.map(b => b.id);
           if (deleteIds.length > 0) {
             await supabase
@@ -408,13 +468,24 @@ export default function App() {
     syncBooksState(updated);
     showToast("Book added to series successfully! 📦✨");
 
+    const updatedMapping = { ...seriesMapping, [bookId]: seriesName };
+    setSeriesMapping(updatedMapping);
+    localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
+
+    setSeriesOrder((prev) => {
+      const filtered = prev.filter(s => s !== seriesName);
+      const updatedOrder = [seriesName, ...filtered];
+      localStorage.setItem('her_library_series_order', JSON.stringify(updatedOrder));
+      return updatedOrder;
+    });
+
     if (hasSupabase) {
       try {
         const updatedBook = updated.find(b => b.id === bookId);
         if (updatedBook) {
           await supabase
             .from('books')
-            .update({ series_name: seriesName, tags: updatedBook.tags, is_series: true })
+            .update({ tags: updatedBook.tags })
             .eq('id', bookId);
         }
       } catch (err) {
@@ -438,6 +509,20 @@ export default function App() {
     setIsCreateSeriesOpen(false);
     showToast(`Series "${seriesName}" created successfully! 📦✨`);
 
+    const updatedMapping = { ...seriesMapping };
+    selectedBookIds.forEach((bookId) => {
+      updatedMapping[bookId] = seriesName;
+    });
+    setSeriesMapping(updatedMapping);
+    localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
+
+    setSeriesOrder((prev) => {
+      const filtered = prev.filter(s => s !== seriesName);
+      const updatedOrder = [seriesName, ...filtered];
+      localStorage.setItem('her_library_series_order', JSON.stringify(updatedOrder));
+      return updatedOrder;
+    });
+
     if (hasSupabase) {
       try {
         for (const bookId of selectedBookIds) {
@@ -445,7 +530,7 @@ export default function App() {
           if (updatedBook) {
             await supabase
               .from('books')
-              .update({ series_name: seriesName, tags: updatedBook.tags, is_series: true })
+              .update({ tags: updatedBook.tags })
               .eq('id', bookId);
           }
         }
@@ -553,7 +638,11 @@ export default function App() {
       showToast(`"${title}" has been deleted from your library 🗑️`);
       setSelectedBook(null);
 
-
+      // Clean up mapping
+      const updatedMapping = { ...seriesMapping };
+      delete updatedMapping[id];
+      setSeriesMapping(updatedMapping);
+      localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
 
       // Supabase update
       if (hasSupabase) {
@@ -592,29 +681,41 @@ export default function App() {
 
   const handleAddBook = async (newBookData, coverFile, pdfFile) => {
     const tempId = Date.now() + Math.floor(Math.random() * 100000);
+    const { series_name, is_series, ...bookDataWithoutSeries } = newBookData;
     const fullNewBook = { ...newBookData, id: tempId };
 
     // Optimistically add to state using functional updater to avoid stale state issues
     setBooks((prev) => {
       const updated = [...prev, fullNewBook];
-      if (!hasSupabase) {
-        localStorage.setItem('her_library_books', JSON.stringify(updated));
-      }
+      localStorage.setItem('her_library_books', JSON.stringify(updated));
       return updated;
     });
+
+    if (series_name) {
+      const updatedMapping = { ...seriesMapping, [tempId]: series_name };
+      setSeriesMapping(updatedMapping);
+      localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
+
+      setSeriesOrder((prev) => {
+        const filtered = prev.filter(s => s !== series_name);
+        const updatedOrder = [series_name, ...filtered];
+        localStorage.setItem('her_library_series_order', JSON.stringify(updatedOrder));
+        return updatedOrder;
+      });
+    }
 
     showToast(`✨ Adding "${newBookData.title}" to your library...`);
 
     // Supabase update
     if (hasSupabase) {
       try {
-        let customCoverUrl = newBookData.custom_cover;
+        let customCoverUrl = bookDataWithoutSeries.custom_cover;
         let pdfUrl = null;
 
         // Upload helper
         const uploadFile = async (bucket, file) => {
           const fileExt = file.name.split('.').pop();
-          const sanitizedTitle = newBookData.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          const sanitizedTitle = bookDataWithoutSeries.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
           const fileName = `${sanitizedTitle}_${Date.now()}.${fileExt}`;
 
           const { data, error } = await supabase.storage
@@ -635,7 +736,7 @@ export default function App() {
 
         // 1. Upload cover if provided
         if (coverFile) {
-          showToast(`📸 Uploading cover image for "${newBookData.title}"...`);
+          showToast(`📸 Uploading cover image for "${bookDataWithoutSeries.title}"...`);
           try {
             customCoverUrl = await uploadFile('covers', coverFile);
           } catch (coverErr) {
@@ -646,7 +747,7 @@ export default function App() {
 
         // 2. Upload PDF if provided
         if (pdfFile) {
-          showToast(`📁 Uploading PDF file for "${newBookData.title}"...`);
+          showToast(`📁 Uploading PDF file for "${bookDataWithoutSeries.title}"...`);
           try {
             pdfUrl = await uploadFile('books', pdfFile);
           } catch (pdfErr) {
@@ -657,7 +758,7 @@ export default function App() {
 
         // Create the updated row payload
         const finalBookData = {
-          ...newBookData,
+          ...bookDataWithoutSeries,
           custom_cover: customCoverUrl,
           pdf_url: pdfUrl
         };
@@ -670,8 +771,22 @@ export default function App() {
         if (error) throw error;
 
         if (data && data[0]) {
+          const realBook = data[0];
+          let finalMapping = { ...seriesMapping };
+          if (series_name) {
+            delete finalMapping[tempId];
+            finalMapping[realBook.id] = series_name;
+            setSeriesMapping(finalMapping);
+            localStorage.setItem('her_library_series_mapping', JSON.stringify(finalMapping));
+          }
+          const realBookWithSeries = {
+            ...realBook,
+            series_name: series_name || null,
+            is_series: is_series || false
+          };
+
           // Replace tempId with the real database generated ID and updated remote URLs
-          setBooks((prev) => prev.map((b) => (b.id === tempId ? data[0] : b)));
+          setBooks((prev) => prev.map((b) => (b.id === tempId ? realBookWithSeries : b)));
           showToast(`✨ "${newBookData.title}" successfully added and synced!`);
         }
       } catch (err) {
@@ -686,6 +801,25 @@ export default function App() {
   const handleEditBook = async (id, updatedBookData, coverFile, pdfFile) => {
     const targetBook = books.find((b) => b.id === id);
     if (!targetBook) return;
+
+    const { series_name, is_series, ...bookDataWithoutSeries } = updatedBookData;
+
+    // Update local series mapping
+    const updatedMapping = { ...seriesMapping };
+    if (series_name) {
+      updatedMapping[id] = series_name;
+
+      setSeriesOrder((prev) => {
+        const filtered = prev.filter(s => s !== series_name);
+        const updatedOrder = [series_name, ...filtered];
+        localStorage.setItem('her_library_series_order', JSON.stringify(updatedOrder));
+        return updatedOrder;
+      });
+    } else {
+      delete updatedMapping[id];
+    }
+    setSeriesMapping(updatedMapping);
+    localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
 
     let localCover = updatedBookData.custom_cover;
     let localPdf = targetBook.pdf_url;
@@ -765,7 +899,7 @@ export default function App() {
         }
 
         const finalBookData = {
-          ...updatedBookData,
+          ...bookDataWithoutSeries,
           custom_cover: customCoverUrl,
           pdf_url: pdfUrl
         };
@@ -779,7 +913,13 @@ export default function App() {
         if (error) throw error;
 
         if (data && data[0]) {
-          const finalList = books.map((b) => (b.id === id ? data[0] : b));
+          const realBook = data[0];
+          const realBookWithSeries = {
+            ...realBook,
+            series_name: series_name || null,
+            is_series: is_series || false
+          };
+          const finalList = books.map((b) => (b.id === id ? realBookWithSeries : b));
           syncBooksState(finalList);
           showToast(`✨ "${updatedBookData.title}" successfully updated!`);
         }
@@ -898,6 +1038,19 @@ export default function App() {
       }
       seriesGroups[sName].push(book);
     }
+  });
+
+  // Sort series names based on seriesOrder (newest created series at the top)
+  const sortedSeriesNames = Object.keys(seriesGroups).sort((a, b) => {
+    if (a === "Unnamed Series") return 1;
+    if (b === "Unnamed Series") return -1;
+
+    const idxA = seriesOrder.indexOf(a);
+    const idxB = seriesOrder.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b);
   });
 
   // Calculate statistics (using non-deleted active books)
@@ -1027,7 +1180,7 @@ export default function App() {
         </div>
 
         {/* Add Book trigger button row */}
-        <div className="flex justify-center items-center gap-3 mb-12">
+        <div className={`flex justify-center items-center gap-3 ${activeFilter === 'series' ? 'mb-4' : 'mb-12'}`}>
           {/* Delete Tag Button (only visible for non-excluded tags) */}
           {!['all', 'read', 'reading', 'series', 'favourites', 'hidden'].includes(activeFilter) && (
             <button
@@ -1073,6 +1226,16 @@ export default function App() {
             ➕ Add a Book
           </button>
         </div>
+
+        {activeFilter === 'series' && (
+          <div className="text-center max-w-[600px] mx-auto mb-10 text-[11px] text-[#a89880]/90 font-sans flex items-start sm:items-center justify-center gap-2 bg-white/[0.02] border border-white/5 rounded-xl px-5 py-3 shadow-inner select-none">
+            <span className="text-[#d4a853] text-sm">ℹ️</span>
+            <span className="text-left sm:text-center leading-relaxed">
+              <strong>Disclaimer:</strong> Creating a series only stores the series grouping in this device's local storage; these changes won't appear on other devices. (However, books themselves can still be created and synced in the general collection across all devices).
+            </span>
+          </div>
+        )}
+
         {activeFilter === 'series' ? (
           <div className="flex flex-col gap-10 mt-8">
             {Object.keys(seriesGroups).length === 0 ? (
@@ -1080,7 +1243,8 @@ export default function App() {
                 No series found... yet 📚
               </div>
             ) : (
-              Object.entries(seriesGroups).map(([seriesName, seriesBooks]) => {
+              sortedSeriesNames.map((seriesName) => {
+                const seriesBooks = seriesGroups[seriesName];
                 const allHidden = seriesBooks.every(b => b.is_hidden);
                 return (
                   <div key={seriesName} className="border border-[#d4a853]/15 rounded-2xl p-6 bg-white/[0.02] shadow-sm">

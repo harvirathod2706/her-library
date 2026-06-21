@@ -91,14 +91,14 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
     if (file) {
       setPdfFile(file);
       onShowToast("Analyzing PDF page count... 🔍");
-      
+
       const readPages = () => {
         return new Promise((resolve) => {
           const reader = new FileReader();
-          reader.onload = async function() {
+          reader.onload = async function () {
             try {
               const typedarray = new Uint8Array(this.result);
-              
+
               if (typeof window.pdfjsLib === 'undefined') {
                 const script = document.createElement('script');
                 script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
@@ -171,7 +171,7 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
       onShowToast("✨ Details auto-filled perfectly using Gemini AI!");
     } catch (err) {
       console.warn("Gemini auto-fill failed, using local fallback:", err);
-      
+
       const key = tVal.toLowerCase();
       const match = POPULAR_BOOKS_AUTO_FILL[key];
 
@@ -183,11 +183,11 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
       } else {
         const fallbackAuthors = ["Sally Rooney", "Emily Henry", "Colleen Hoover", "Khaled Hosseini", "Taylor Jenkins Reid", "Holly Jackson"];
         const selectedAuthor = author.trim() || fallbackAuthors[Math.floor(Math.random() * fallbackAuthors.length)];
-        
+
         const possibleTags = ["Romance 💕", "Thriller 🔪", "Emotional 🥺", "Page-turner 📖", "Beautiful 🌸", "Dark 🖤", "Heartwarming ✨"];
         const shuffled = [...possibleTags].sort(() => 0.5 - Math.random());
         const generatedTags = shuffled.slice(0, 3).join(", ");
-        
+
         const generatedDesc = `A beautiful, captivating read about "${tVal}" by ${selectedAuthor}. It takes you on a deep, emotional journey that you will not want to put down. ✨`;
 
         setAuthor(selectedAuthor);
@@ -274,8 +274,8 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
   };
 
   const DEFAULT_TAGS = [
-    "Series", "Fiction", "Non-fiction", "Romance 💕", "Thriller 🔪", "Self Help 🌱", 
-    "Mystery 🔍", "Fantasy 🔮", "Emotional 🥺", "Classic 📜", "Hindi Lit 🇮🇳", 
+    "Series", "Fiction", "Non-fiction", "Romance 💕", "Thriller 🔪", "Self Help 🌱",
+    "Mystery 🔍", "Fantasy 🔮", "Emotional 🥺", "Classic 📜", "Hindi Lit 🇮🇳",
     "Dystopian 💫", "Philosophy 🧠"
   ];
 
@@ -303,13 +303,13 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 overflow-y-auto backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
       <div className="relative bg-[#0d1117] border border-[#d4a853]/25 w-full max-w-md rounded-2xl p-6 md:p-8 text-[#e8dcc8] shadow-2xl flex flex-col gap-6 max-h-[90vh] overflow-y-auto font-lora">
         {/* Close Button */}
-        <button 
+        <button
           onClick={handleClose}
           className="absolute right-4 top-4 w-8 h-8 rounded-full border border-white/10 hover:border-[#d4a853]/40 flex items-center justify-center text-lg text-[#a89880] hover:text-[#d4a853] transition-colors bg-none cursor-pointer"
         >
@@ -329,39 +329,39 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
           {/* Title */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[#a89880] font-medium tracking-wide">Book Title</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Verity" 
+              placeholder="e.g. Verity"
               className="bg-white/[0.04] border border-[#d4a853]/20 rounded-lg p-2.5 text-[#e8dcc8] font-lora text-sm outline-none form-input-focus"
-              required 
+              required
             />
           </div>
 
           {/* Author */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[#a89880] font-medium tracking-wide">Author Name</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
-              placeholder="by Author Name" 
+              placeholder="Author Name"
               className="bg-white/[0.04] border border-[#d4a853]/20 rounded-lg p-2.5 text-[#e8dcc8] font-lora text-sm outline-none form-input-focus"
-              required 
+              required
             />
           </div>
 
           {/* Tags */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[#a89880] font-medium tracking-wide">Genre Tags (comma-separated)</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              placeholder="e.g. Psychological Thriller, Dark, Suspense" 
+              placeholder="e.g. Psychological Thriller, Dark, Suspense"
               className="bg-white/[0.04] border border-[#d4a853]/20 rounded-lg p-2.5 text-[#e8dcc8] font-lora text-sm outline-none form-input-focus"
-              required 
+              required
             />
             {/* Tag Pills Selector */}
             <div className="flex flex-wrap gap-1.5 mt-1.5 max-h-[110px] overflow-y-auto p-2 bg-white/[0.02] border border-white/5 rounded-lg select-none no-scrollbar">
@@ -374,8 +374,8 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
                     type="button"
                     onClick={() => handleTagToggle(tag)}
                     className={`font-sans text-[10px] px-2.5 py-1 rounded-full border transition-all cursor-pointer flex items-center gap-1 select-none
-                      ${isSelected 
-                        ? 'bg-[#d4a853]/15 border-[#d4a853] text-[#d4a853] font-semibold' 
+                      ${isSelected
+                        ? 'bg-[#d4a853]/15 border-[#d4a853] text-[#d4a853] font-semibold'
                         : 'bg-white/[0.02] border-white/10 text-[#a89880] hover:bg-white/[0.04] hover:text-[#e8dcc8]'}`}
                   >
                     <span>{isSelected ? '✓' : '+'}</span>
@@ -391,21 +391,21 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
           <div className="flex flex-col gap-1.5">
             <label className="text-[#a89880] font-medium tracking-wide">Book PDF File</label>
             <div className="flex items-center gap-4">
-              <input 
-                type="file" 
-                id="add-pdf-file" 
-                accept="application/pdf" 
+              <input
+                type="file"
+                id="add-pdf-file"
+                accept="application/pdf"
                 onChange={handlePdfChange}
-                className="hidden" 
+                className="hidden"
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => document.getElementById('add-pdf-file').click()}
                 className="bg-white/[0.04] border border-[#d4a853]/30 hover:bg-[#d4a853]/5 px-4 py-2 rounded-lg text-[#d4a853] font-bold transition-all cursor-pointer"
               >
                 📁 Choose PDF
               </button>
-              
+
               <div className="text-xs text-[#a89880] truncate max-w-[200px]">
                 {pdfFile ? pdfFile.name : "No PDF selected"}
               </div>
@@ -415,14 +415,14 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
           {/* Pages count */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[#a89880] font-medium tracking-wide">Total Pages</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               value={pages}
               onChange={(e) => setPages(parseInt(e.target.value, 10) || 1)}
-              placeholder="350" 
+              placeholder="350"
               className="bg-white/[0.04] border border-[#d4a853]/20 rounded-lg p-2.5 text-[#e8dcc8] font-lora text-sm outline-none form-input-focus"
               min={1}
-              required 
+              required
             />
           </div>
 
@@ -430,21 +430,21 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
           <div className="flex flex-col gap-1.5">
             <label className="text-[#a89880] font-medium tracking-wide">Cover Image</label>
             <div className="flex items-center gap-4">
-              <input 
-                type="file" 
-                id="add-cover-file" 
-                accept="image/*" 
+              <input
+                type="file"
+                id="add-cover-file"
+                accept="image/*"
                 onChange={handleFileChange}
-                className="hidden" 
+                className="hidden"
               />
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => document.getElementById('add-cover-file').click()}
                 className="bg-white/[0.04] border border-[#d4a853]/30 hover:bg-[#d4a853]/5 px-4 py-2 rounded-lg text-[#d4a853] font-bold transition-all cursor-pointer"
               >
                 📸 Choose Image
               </button>
-              
+
               {/* Preview Box */}
               <div className="w-14 h-20 border border-dashed border-white/10 rounded-md flex items-center justify-center text-center overflow-hidden bg-black/10 text-[9px] text-[#a89880] px-1 select-none">
                 {coverBase64 ? (
@@ -459,10 +459,10 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
           {/* Description */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[#a89880] font-medium tracking-wide">Description / Personal Note</label>
-            <textarea 
+            <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Write a short review, note, or description..." 
+              placeholder="Write a short review, note, or description..."
               className="bg-white/[0.04] border border-[#d4a853]/20 rounded-lg p-2.5 text-[#e8dcc8] font-lora text-sm outline-none form-input-focus"
               rows={3}
               required
@@ -471,14 +471,14 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
 
           {/* Form Actions */}
           <div className="flex justify-between items-center gap-4 mt-4">
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={handleAutoFill}
               className="bg-white/[0.03] border border-white/10 hover:border-[#d4a853]/40 hover:bg-[#d4a853]/5 px-4 py-2 rounded-lg text-[#a89880] hover:text-[#d4a853] font-bold transition-all cursor-pointer"
             >
               ✨ Auto Generate
             </button>
-            <button 
+            <button
               type="submit"
               className="bg-gradient-to-r from-[#7c2d3a] to-[#c4869a] border-none px-6 py-2 rounded-lg text-white font-bold transition-all shadow-md hover:opacity-95 cursor-pointer"
             >
