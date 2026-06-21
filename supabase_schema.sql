@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS books (
   "similar" text[] NOT NULL DEFAULT '{}',
   custom_cover text,
   pdf_url text,
+  series_name text,
   current_page integer NOT NULL DEFAULT 0,
   is_hidden boolean NOT NULL DEFAULT false,
   is_deleted boolean NOT NULL DEFAULT false,
@@ -76,6 +77,7 @@ SELECT setval(pg_get_serial_sequence('books', 'id'), coalesce(max(id), 0) + 1, f
 
 -- 3. Migration for existing books table
 ALTER TABLE books ADD COLUMN IF NOT EXISTS pdf_url text;
+ALTER TABLE books ADD COLUMN IF NOT EXISTS series_name text;
 
 -- 4. Create storage buckets
 INSERT INTO storage.buckets (id, name, public)

@@ -7,6 +7,7 @@ import BookShelf from './components/BookShelf';
 import BookDetailModal from './components/BookDetailModal';
 import AddBookModal from './components/AddBookModal';
 import ExploreAddModal from './components/ExploreAddModal';
+import CreateSeriesModal from './components/CreateSeriesModal';
 import Toast from './components/Toast';
 import ChatbotWidget from './components/ChatbotWidget';
 import PdfReaderModal from './components/PdfReaderModal';
@@ -32,28 +33,7 @@ export default function App() {
     return cached ? JSON.parse(cached) : [];
   });
 
-  const DEFAULT_SERIES_MAPPING = {
-    7: "Shatter Me",
-    8: "The Inheritance Games",
-    12: "A Good Girl's Guide to Murder",
-    13: "A Good Girl's Guide to Murder",
-    14: "A Good Girl's Guide to Murder",
-    26: "The Hidden Hindu"
-  };
-
-  const [seriesMapping, setSeriesMapping] = useState(() => {
-    const cached = localStorage.getItem('her_library_series_mapping');
-    if (cached) return JSON.parse(cached);
-    localStorage.setItem('her_library_series_mapping', JSON.stringify(DEFAULT_SERIES_MAPPING));
-    return DEFAULT_SERIES_MAPPING;
-  });
-
-  const applySeriesMapping = (booksList, mapping = seriesMapping) => {
-    return booksList.map(b => ({
-      ...b,
-      series_name: mapping[b.id] || null
-    }));
-  };
+  const [isCreateSeriesOpen, setIsCreateSeriesOpen] = useState(false);
 
   const [seriesToDelete, setSeriesToDelete] = useState(null);
   const [seriesForAddingBook, setSeriesForAddingBook] = useState(null);
@@ -97,7 +77,7 @@ export default function App() {
           if (error) throw error;
 
           if (data && data.length > 0) {
-            setBooks(applySeriesMapping(data));
+            setBooks(data);
           } else {
             // DB is empty, auto-seed with DEFAULT_BOOKS
             const { error: seedError } = await supabase.from('books').insert(DEFAULT_BOOKS);
@@ -107,7 +87,7 @@ export default function App() {
               .from('books')
               .select('*')
               .order('id', { ascending: true });
-            if (reloaded) setBooks(applySeriesMapping(reloaded));
+            if (reloaded) setBooks(reloaded);
           }
         } catch (err) {
           console.error('Supabase fetch failed, falling back to LocalStorage:', err);
@@ -150,10 +130,10 @@ export default function App() {
   const loadLocalBooks = () => {
     const cached = localStorage.getItem('her_library_books');
     if (cached) {
-      setBooks(applySeriesMapping(JSON.parse(cached)));
+      setBooks(JSON.parse(cached));
     } else {
       localStorage.setItem('her_library_books', JSON.stringify(DEFAULT_BOOKS));
-      setBooks(applySeriesMapping(DEFAULT_BOOKS));
+      setBooks(DEFAULT_BOOKS);
     }
   };
 
@@ -370,17 +350,6 @@ export default function App() {
       });
       syncBooksState(updated);
       showToast(`Series metadata removed. Books kept! 📦`);
-      
-      const updatedMapping = { ...seriesMapping };
-      books.forEach(b => {
-        const match = b.series_name === seriesName || 
-          (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
-        if (match) {
-          delete updatedMapping[b.id];
-        }
-      });
-      setSeriesMapping(updatedMapping);
-      localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
 
       if (hasSupabase) {
         try {
@@ -389,7 +358,7 @@ export default function App() {
             const updatedTags = (book.tags || []).filter(t => t.toLowerCase() !== 'series');
             await supabase
               .from('books')
-              .update({ tags: updatedTags })
+              .update({ series_name: null, tags: updatedTags })
               .eq('id', book.id);
           }
         } catch (err) {
@@ -404,20 +373,13 @@ export default function App() {
       });
       syncBooksState(updated);
       showToast(`Series and all its books deleted successfully! 🗑️`);
-
-      const updatedMapping = { ...seriesMapping };
-      const booksToDelete = books.filter((b) => {
-        return b.series_name === seriesName || 
-          (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
-      });
-      booksToDelete.forEach(b => {
-        delete updatedMapping[b.id];
-      });
-      setSeriesMapping(updatedMapping);
-      localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
       
       if (hasSupabase) {
         try {
+          const booksToDelete = books.filter((b) => {
+            return b.series_name === seriesName || 
+              (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
+          });
           const deleteIds = booksToDelete.map(b => b.id);
           if (deleteIds.length > 0) {
             await supabase
@@ -446,21 +408,50 @@ export default function App() {
     syncBooksState(updated);
     showToast("Book added to series successfully! 📦✨");
 
-    const updatedMapping = { ...seriesMapping, [bookId]: seriesName };
-    setSeriesMapping(updatedMapping);
-    localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
-
     if (hasSupabase) {
       try {
         const updatedBook = updated.find(b => b.id === bookId);
         if (updatedBook) {
           await supabase
             .from('books')
-            .update({ tags: updatedBook.tags })
+            .update({ series_name: seriesName, tags: updatedBook.tags })
             .eq('id', bookId);
         }
       } catch (err) {
         console.error('Supabase add book to series failed:', err);
+      }
+    }
+  };
+
+  const handleCreateSeries = async (seriesName, selectedBookIds) => {
+    const updated = books.map((b) => {
+      if (selectedBookIds.includes(b.id)) {
+        const currentTags = b.tags || [];
+        const hasSeriesTag = currentTags.some(t => t.toLowerCase() === 'series');
+        const updatedTags = hasSeriesTag ? currentTags : [...currentTags, 'Series'];
+        return { ...b, series_name: seriesName, tags: updatedTags };
+      }
+      return b;
+    });
+
+    syncBooksState(updated);
+    setIsCreateSeriesOpen(false);
+    showToast(`Series "${seriesName}" created successfully! 📦✨`);
+
+    if (hasSupabase) {
+      try {
+        for (const bookId of selectedBookIds) {
+          const updatedBook = updated.find(b => b.id === bookId);
+          if (updatedBook) {
+            await supabase
+              .from('books')
+              .update({ series_name: seriesName, tags: updatedBook.tags })
+              .eq('id', bookId);
+          }
+        }
+      } catch (err) {
+        console.error('Supabase create series failed:', err);
+        showToast('⚠️ Failed to save series in cloud database.');
       }
     }
   };
@@ -562,11 +553,7 @@ export default function App() {
       showToast(`"${title}" has been deleted from your library 🗑️`);
       setSelectedBook(null);
 
-      // Clean up mapping
-      const updatedMapping = { ...seriesMapping };
-      delete updatedMapping[id];
-      setSeriesMapping(updatedMapping);
-      localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
+
 
       // Supabase update
       if (hasSupabase) {
@@ -605,7 +592,6 @@ export default function App() {
 
   const handleAddBook = async (newBookData, coverFile, pdfFile) => {
     const tempId = Date.now() + Math.floor(Math.random() * 100000);
-    const { series_name, ...bookDataWithoutSeries } = newBookData;
     const fullNewBook = { ...newBookData, id: tempId };
 
     // Optimistically add to state using functional updater to avoid stale state issues
@@ -617,24 +603,18 @@ export default function App() {
       return updated;
     });
 
-    if (series_name) {
-      const updatedMapping = { ...seriesMapping, [tempId]: series_name };
-      setSeriesMapping(updatedMapping);
-      localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
-    }
-
     showToast(`✨ Adding "${newBookData.title}" to your library...`);
 
     // Supabase update
     if (hasSupabase) {
       try {
-        let customCoverUrl = bookDataWithoutSeries.custom_cover;
+        let customCoverUrl = newBookData.custom_cover;
         let pdfUrl = null;
 
         // Upload helper
         const uploadFile = async (bucket, file) => {
           const fileExt = file.name.split('.').pop();
-          const sanitizedTitle = bookDataWithoutSeries.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
+          const sanitizedTitle = newBookData.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
           const fileName = `${sanitizedTitle}_${Date.now()}.${fileExt}`;
 
           const { data, error } = await supabase.storage
@@ -655,7 +635,7 @@ export default function App() {
 
         // 1. Upload cover if provided
         if (coverFile) {
-          showToast(`📸 Uploading cover image for "${bookDataWithoutSeries.title}"...`);
+          showToast(`📸 Uploading cover image for "${newBookData.title}"...`);
           try {
             customCoverUrl = await uploadFile('covers', coverFile);
           } catch (coverErr) {
@@ -666,7 +646,7 @@ export default function App() {
 
         // 2. Upload PDF if provided
         if (pdfFile) {
-          showToast(`📁 Uploading PDF file for "${bookDataWithoutSeries.title}"...`);
+          showToast(`📁 Uploading PDF file for "${newBookData.title}"...`);
           try {
             pdfUrl = await uploadFile('books', pdfFile);
           } catch (pdfErr) {
@@ -677,7 +657,7 @@ export default function App() {
 
         // Create the updated row payload
         const finalBookData = {
-          ...bookDataWithoutSeries,
+          ...newBookData,
           custom_cover: customCoverUrl,
           pdf_url: pdfUrl
         };
@@ -690,21 +670,8 @@ export default function App() {
         if (error) throw error;
 
         if (data && data[0]) {
-          const realBook = data[0];
-          let finalMapping = { ...seriesMapping };
-          if (series_name) {
-            delete finalMapping[tempId];
-            finalMapping[realBook.id] = series_name;
-            setSeriesMapping(finalMapping);
-            localStorage.setItem('her_library_series_mapping', JSON.stringify(finalMapping));
-          }
-          const realBookWithSeries = {
-            ...realBook,
-            series_name: series_name || null
-          };
-
           // Replace tempId with the real database generated ID and updated remote URLs
-          setBooks((prev) => prev.map((b) => (b.id === tempId ? realBookWithSeries : b)));
+          setBooks((prev) => prev.map((b) => (b.id === tempId ? data[0] : b)));
           showToast(`✨ "${newBookData.title}" successfully added and synced!`);
         }
       } catch (err) {
@@ -719,18 +686,6 @@ export default function App() {
   const handleEditBook = async (id, updatedBookData, coverFile, pdfFile) => {
     const targetBook = books.find((b) => b.id === id);
     if (!targetBook) return;
-
-    const { series_name, ...bookDataWithoutSeries } = updatedBookData;
-
-    // Update local series mapping
-    const updatedMapping = { ...seriesMapping };
-    if (series_name) {
-      updatedMapping[id] = series_name;
-    } else {
-      delete updatedMapping[id];
-    }
-    setSeriesMapping(updatedMapping);
-    localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
 
     let localCover = updatedBookData.custom_cover;
     let localPdf = targetBook.pdf_url;
@@ -810,7 +765,7 @@ export default function App() {
         }
 
         const finalBookData = {
-          ...bookDataWithoutSeries,
+          ...updatedBookData,
           custom_cover: customCoverUrl,
           pdf_url: pdfUrl
         };
@@ -824,12 +779,7 @@ export default function App() {
         if (error) throw error;
 
         if (data && data[0]) {
-          const realBook = data[0];
-          const realBookWithSeries = {
-            ...realBook,
-            series_name: series_name || null
-          };
-          const finalList = books.map((b) => (b.id === id ? realBookWithSeries : b));
+          const finalList = books.map((b) => (b.id === id ? data[0] : b));
           syncBooksState(finalList);
           showToast(`✨ "${updatedBookData.title}" successfully updated!`);
         }
@@ -1106,6 +1056,14 @@ export default function App() {
               className="flex items-center gap-2 bg-red-950/40 border border-red-500/35 hover:bg-red-950/60 py-2.5 px-6 rounded-full text-red-400 font-sans font-semibold text-xs tracking-wide cursor-pointer transition-all shadow-md active:scale-95"
             >
               🗑️ Delete Tag
+            </button>
+          )}
+          {activeFilter === 'series' && (
+            <button
+              onClick={() => setIsCreateSeriesOpen(true)}
+              className="flex items-center gap-2 bg-[#d4a853]/10 border border-[#d4a853]/45 hover:bg-[#d4a853]/15 py-2.5 px-6 rounded-full text-[#d4a853] font-sans font-semibold text-xs tracking-wide cursor-pointer transition-all shadow-md active:scale-95"
+            >
+              ➕ Create Series
             </button>
           )}
           <button
@@ -1388,6 +1346,13 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <CreateSeriesModal 
+        isOpen={isCreateSeriesOpen}
+        onClose={() => setIsCreateSeriesOpen(false)}
+        onCreateSeries={handleCreateSeries}
+        books={books}
+      />
 
       {/* AI Librarian Chatbot */}
       <ChatbotWidget books={books} />
