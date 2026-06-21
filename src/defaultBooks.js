@@ -109,7 +109,8 @@ export const DEFAULT_BOOKS = [
     similar: ["Red Queen", "An Ember in the Ashes", "The Cruel Prince"],
     current_page: 338,
     is_hidden: false,
-    is_deleted: false
+    is_deleted: false,
+    series_name: "Shatter Me"
   },
   {
     id: 8,
@@ -125,7 +126,8 @@ export const DEFAULT_BOOKS = [
     similar: ["One of Us Is Lying", "A Good Girl's Guide to Murder", "The Naturals"],
     current_page: 384,
     is_hidden: false,
-    is_deleted: false
+    is_deleted: false,
+    series_name: "The Inheritance Games"
   },
   {
     id: 9,
@@ -189,7 +191,8 @@ export const DEFAULT_BOOKS = [
     similar: ["Good Girl Bad Blood", "As Good as Dead", "The Inheritance Games"],
     current_page: 400,
     is_hidden: false,
-    is_deleted: false
+    is_deleted: false,
+    series_name: "A Good Girl's Guide to Murder"
   },
   {
     id: 13,
@@ -205,7 +208,8 @@ export const DEFAULT_BOOKS = [
     similar: ["A Good Girl's Guide to Murder", "Good Girl Bad Blood", "Killing Eve"],
     current_page: 480,
     is_hidden: false,
-    is_deleted: false
+    is_deleted: false,
+    series_name: "A Good Girl's Guide to Murder"
   },
   {
     id: 14,
@@ -221,7 +225,8 @@ export const DEFAULT_BOOKS = [
     similar: ["The Inheritance Games", "The Silent Patient", "One of Us Is Lying"],
     current_page: 390,
     is_hidden: false,
-    is_deleted: false
+    is_deleted: false,
+    series_name: "A Good Girl's Guide to Murder"
   },
   {
     id: 15,
@@ -413,7 +418,8 @@ export const DEFAULT_BOOKS = [
     similar: ["The Immortals of Meluha", "Rise of the Argonauts", "Ramayana"],
     current_page: 316,
     is_hidden: false,
-    is_deleted: false
+    is_deleted: false,
+    series_name: "The Hidden Hindu"
   },
   {
     id: 27,

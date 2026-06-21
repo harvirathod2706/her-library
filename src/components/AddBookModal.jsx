@@ -212,6 +212,12 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
     }
 
     const tagList = tags.split(",").map(t => t.trim()).filter(Boolean);
+    
+    // Automatically add "Series" tag if seriesName is provided
+    if (seriesName.trim() && !tagList.some(t => t.toLowerCase() === 'series')) {
+      tagList.push('Series');
+    }
+    
     const tagsLower = tagList.map(t => t.toLowerCase());
 
     // Determine status

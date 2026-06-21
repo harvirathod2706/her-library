@@ -365,10 +365,17 @@ export default function App() {
       
       if (hasSupabase) {
         try {
-          await supabase
-            .from('books')
-            .delete()
-            .eq('series_name', seriesName);
+          const booksToDelete = books.filter((b) => {
+            return b.series_name === seriesName || 
+              (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
+          });
+          const deleteIds = booksToDelete.map(b => b.id);
+          if (deleteIds.length > 0) {
+            await supabase
+              .from('books')
+              .delete()
+              .in('id', deleteIds);
+          }
         } catch (err) {
           console.error(err);
         }
