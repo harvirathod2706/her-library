@@ -17,15 +17,44 @@ export async function generateBookDetails(title, author = '') {
     throw new Error('Gemini API key is not configured in your .env file (VITE_GEMINI_API).');
   }
 
+  // 1. Fetch real-world metadata from Open Library first for maximum accuracy
+  let olData = null;
+  try {
+    const query = author ? `${title} ${author}` : title;
+    const olUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=1`;
+    const olRes = await fetch(olUrl);
+    if (olRes.ok) {
+      const olJson = await olRes.json();
+      const doc = olJson.docs?.[0];
+      if (doc) {
+        olData = {
+          author: doc.author_name?.[0] || '',
+          pages: doc.number_of_pages_median || doc.number_of_pages || null,
+          coverUrl: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg` : null,
+          subjects: doc.subject?.slice(0, 5) || []
+        };
+      }
+    }
+  } catch (olErr) {
+    console.warn('Open Library search failed:', olErr);
+  }
+
+  // 2. Instruct Gemini to synthesize the metadata and formulate tags and summaries
   const prompt = `You are an expert book cataloger. Provide accurate metadata for the book titled "${title}"${author ? ` written by "${author}"` : ''}.
+${olData ? `Here is reference data found in the library database:
+- Author: ${olData.author}
+- Pages: ${olData.pages}
+- Subjects: ${olData.subjects.join(', ')}` : ''}
+
 Return a strict JSON object with EXACTLY the following fields:
 {
-  "author": "The author's full name",
+  "author": "${olData?.author || ''}",
   "tags": "A comma-separated string of 3-4 genre tags (e.g. 'Thriller, Mystery, Suspense')",
   "description": "An engaging, beautiful, brief 2-3 sentence summary of the book",
-  "pages": 350
+  "pages": ${olData?.pages || 350},
+  "coverUrl": "${olData?.coverUrl || ''}"
 }
-Make sure 'pages' is a number, not a string. Return ONLY the JSON object. Do not wrap the JSON output in markdown formatting (like \`\`\`json or \`\`\`).`;
+If the author is empty in the reference data, fill it in accurately using your knowledge. Make sure 'pages' is a number, not a string. Return ONLY the JSON object. Do not wrap the JSON output in markdown formatting (like \`\`\`json or \`\`\`).`;
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
@@ -60,7 +89,14 @@ Make sure 'pages' is a number, not a string. Return ONLY the JSON object. Do not
 
   try {
     const cleanText = text.trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
-    return JSON.parse(cleanText);
+    const result = JSON.parse(cleanText);
+    
+    // Fallbacks if Gemini omitted them or customized them incorrectly
+    if (!result.pages && olData?.pages) result.pages = olData.pages;
+    if (!result.coverUrl && olData?.coverUrl) result.coverUrl = olData.coverUrl;
+    if (!result.author && olData?.author) result.author = olData.author;
+    
+    return result;
   } catch (err) {
     console.error('Failed to parse Gemini JSON response:', text, err);
     throw new Error('Failed to parse book details from AI response.');
@@ -93,7 +129,7 @@ Here is the reader's current library list for context:
 ${booksContext}
 
 Use this library list to make customized suggestions (e.g. recommending she reads books she hasn't started, or suggesting new books based on what she has already). If she asks about series order, book summaries, or general recommendations, use your vast literary knowledge to reply. 
-Be highly accurate and avoid hallucinating details. Keep responses short and highly concise (maximum 1-2 paragraphs or lists).`;
+Be highly accurate and avoid hallucinating details. Provide beautifully detailed, elaborate, and comprehensive answers. Do not summarize too briefly; give deep, rich descriptions, explanations, and insights for recommendations or queries to make the conversation highly engaging and thorough.`;
 
   const contents = [];
 
@@ -127,7 +163,7 @@ Be highly accurate and avoid hallucinating details. Keep responses short and hig
       },
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 500,
+        maxOutputTokens: 1500,
       }
     }),
   });

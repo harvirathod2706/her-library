@@ -682,12 +682,13 @@ export default function App() {
       <footer className="relative z-10 text-center py-16 px-6 bg-[radial-gradient(ellipse_at_50%_70%,#1f0a1a_0%,var(--midnight)_80%)] border-t border-white/[0.03] select-none">
         <div className="text-xl mb-4">🌹💕📚✨🎂</div>
         <div className="font-playfair text-[#e8dcc8] font-bold text-2xl tracking-wide">
-          Happy Birthday, <span className="text-[#c4869a]">my love</span>
+          Happy Birthday, <span className="text-[#c4869a]">Harviii</span>
         </div>
         <div className="font-lora text-[0.88rem] leading-relaxed text-[#a89880] italic max-w-md mx-auto mt-5">
-          "She is too fond of books, and it has turned her brain." — Louisa May Alcott
+          "She is too fond of books, and it has turned her brain." <br />
+          <span className="ml-[250px]">— Louisa May Alcott</span>
           <br /><br />
-          May every chapter of your life be as beautiful as the books you've read. 🌸
+          May every chapter of your life be as <br />beautiful as the books you've read. 🌸
         </div>
         <div className="text-[10px] text-[#a89880]/60 uppercase tracking-[0.12em] font-sans mt-12">
           made with 💛 just for you

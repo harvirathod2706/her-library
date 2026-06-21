@@ -163,6 +163,7 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
       if (details.tags) setTags(details.tags);
       if (details.description) setDescription(details.description);
       if (details.pages) setPages(details.pages);
+      if (details.coverUrl) setCoverBase64(details.coverUrl);
       onShowToast("✨ Details auto-filled perfectly using Gemini AI!");
     } catch (err) {
       console.warn("Gemini auto-fill failed, using local fallback:", err);

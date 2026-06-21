@@ -28,7 +28,7 @@ export default function Hero({ onEnterLibrary }) {
       </p>
 
       {/* Custom Note */}
-      <div className="relative bg-[#d4a853]/[0.07] border border-[#d4a853]/20 rounded-2xl py-6 px-8 max-w-[520px] text-[0.95rem] leading-[1.8] text-[#e8dcc8] italic animate-[fade-up_1s_ease_0.6s_both] before:content-['❝'] before:text-5xl before:text-[#d4a853] before:opacity-30 before:absolute before:top-[-0.5rem] before:left-4 before:not-italic">
+      <div className="relative bg-[#d4a853]/[0.07] border border-[#d4a853]/20 rounded-2xl py-6 px-8 max-w-[520px] text-[0.95rem] leading-[1.8] text-[#e8dcc8] italic animate-[fade-up_1s_ease_0.6s_both] before:content-['❝'] before:text-5xl before:text-[#d4a853] before:opacity-30 before:absolute before:top-[0rem] before:left-4 before:not-italic">
         To my favourite bookworm... this is every story you've fallen into, every
         character you've loved, every world you've wandered through. Happy
         Birthday, dear Harviii 🎂📚
