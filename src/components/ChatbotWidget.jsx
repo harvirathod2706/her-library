@@ -9,7 +9,7 @@ export default function ChatbotWidget({ books }) {
     {
       id: 'welcome',
       sender: 'bot',
-      text: "Hello! I am **Sparkles** ✨, your personal AI librarian. Ask me anything about books! \n\nI can recommend something to read from your shelf, suggest new books, find read orders for series, or summarize stories. What are we exploring today?",
+      text: "Hello! I am Sparkles ✨, your personal AI librarian. Ask me anything about books! \n\nI can recommend something to read from your shelf, suggest new books, find read orders for series, or summarize stories. What are we exploring today?",
       timestamp: new Date()
     }
   ]);
@@ -59,7 +59,7 @@ export default function ChatbotWidget({ books }) {
       console.error("Chat error:", err);
       let errorText = "Oh dear! I had trouble connecting to my library records. 📚⚡";
       if (err.message && err.message.includes('API key')) {
-        errorText = "I couldn't access my AI powers! Please make sure to add your **VITE_GEMINI_API** key in the `.env` file and restart the development server. 🔑✨";
+        errorText = "I couldn't access my AI powers! Please make sure to add your VITE_GEMINI_API key in the .env file and restart the development server. 🔑✨";
       }
       setMessages(prev => [
         ...prev,
@@ -79,48 +79,20 @@ export default function ChatbotWidget({ books }) {
     handleSend(suggestion);
   };
 
-  // Convert markdown-like syntax (**bold**, *italic*, newlines) into HTML elements safely
+  // Convert markdown-like syntax into HTML elements safely (stripping raw hashtags and asterisks)
   const formatMessageText = (text) => {
     if (!text) return '';
     
     // Split by lines to preserve breaks
     return text.split('\n').map((line, i) => {
-      // Match bold text (**text**)
-      let formattedLine = line;
-      const boldRegex = /\*\*(.*?)\*\*/g;
-      
-      const parts = [];
-      let lastIndex = 0;
-      let match;
-      
-      while ((match = boldRegex.exec(line)) !== null) {
-        // Add normal text before match
-        if (match.index > lastIndex) {
-          parts.push(line.substring(lastIndex, match.index));
-        }
-        // Add bold text
-        parts.push(<strong key={match.index} className="text-[#d4a853] font-semibold">{match[1]}</strong>);
-        lastIndex = boldRegex.lastIndex;
-      }
-      
-      if (lastIndex < line.length) {
-        parts.push(line.substring(lastIndex));
-      }
-
-      // Fallback if no bold matches
-      const content = parts.length > 0 ? parts : line;
+      // Strip leading hashtags/headers (e.g. ### or #)
+      let cleanedLine = line.replace(/^#+\s+/g, '').replace(/^#+/g, '');
+      // Strip any stray ** or * markers if they are raw or formatting
+      cleanedLine = cleanedLine.replace(/\*\*/g, '').replace(/\*/g, '');
 
       // Handle simple list items starting with '-' or '*'
-      if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
-        const listContent = typeof content === 'string' 
-          ? content.replace(/^[-*]\s+/, '') 
-          : React.Children.toArray(content).map((c, idx) => {
-              if (typeof c === 'string' && idx === 0) {
-                return c.replace(/^[-*]\s+/, '');
-              }
-              return c;
-            });
-            
+      if (cleanedLine.trim().startsWith('- ') || cleanedLine.trim().startsWith('* ')) {
+        const listContent = cleanedLine.replace(/^[-*]\s+/, '');
         return (
           <li key={i} className="list-disc list-inside ml-2 my-1 text-[#e8dcc8]/95 leading-relaxed text-sm">
             {listContent}
@@ -130,7 +102,7 @@ export default function ChatbotWidget({ books }) {
 
       return (
         <p key={i} className="my-1 text-[#e8dcc8]/95 leading-relaxed text-sm">
-          {content}
+          {cleanedLine}
         </p>
       );
     });

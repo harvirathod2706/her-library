@@ -27,6 +27,10 @@ export default function App() {
     const cached = localStorage.getItem('her_library_custom_tags');
     return cached ? JSON.parse(cached) : [];
   });
+  const [deletedDefaultTags, setDeletedDefaultTags] = useState(() => {
+    const cached = localStorage.getItem('her_library_deleted_default_tags');
+    return cached ? JSON.parse(cached) : [];
+  });
   const [seriesToDelete, setSeriesToDelete] = useState(null);
   const [seriesForAddingBook, setSeriesForAddingBook] = useState(null);
   const [tagForAddingBook, setTagForAddingBook] = useState(null);
@@ -268,6 +272,58 @@ export default function App() {
       return updated;
     });
     showToast(`Tag "${trimmed}" created! 🏷️`);
+  };
+
+  const handleDeleteTag = async (tagId, label) => {
+    const cleanLabel = label.replace(/[^\w\s\u00C0-\u017F]/g, '').trim();
+    if (!confirm(`Are you sure you want to delete the tag "${cleanLabel || label}"? This will remove the tag from all books.`)) {
+      return;
+    }
+
+    const updatedBooks = books.map((b) => {
+      if (b.tags) {
+        const newTags = b.tags.filter(t => {
+          const normT = t.toLowerCase();
+          const cleanT = t.replace(/[^\w\s\u00C0-\u017F]/g, '').trim().toLowerCase();
+          const cleanTagId = tagId.replace(/[^\w\s\u00C0-\u017F]/g, '').trim().toLowerCase();
+          return normT !== tagId.toLowerCase() && cleanT !== cleanTagId && normT !== label.toLowerCase() && cleanT !== cleanLabel.toLowerCase();
+        });
+        return { ...b, tags: newTags };
+      }
+      return b;
+    });
+
+    syncBooksState(updatedBooks);
+
+    const isCustom = customTags.some(t => t.toLowerCase() === tagId.toLowerCase() || t.toLowerCase() === label.toLowerCase());
+    if (isCustom) {
+      const updatedCustom = customTags.filter(t => t.toLowerCase() !== tagId.toLowerCase() && t.toLowerCase() !== label.toLowerCase());
+      setCustomTags(updatedCustom);
+      localStorage.setItem('her_library_custom_tags', JSON.stringify(updatedCustom));
+    } else {
+      const updatedDeleted = [...deletedDefaultTags, tagId];
+      setDeletedDefaultTags(updatedDeleted);
+      localStorage.setItem('her_library_deleted_default_tags', JSON.stringify(updatedDeleted));
+    }
+
+    if (hasSupabase) {
+      try {
+        for (const book of updatedBooks) {
+          const originalBook = books.find(b => b.id === book.id);
+          if (originalBook && originalBook.tags?.length !== book.tags?.length) {
+            await supabase
+              .from('books')
+              .update({ tags: book.tags })
+              .eq('id', book.id);
+          }
+        }
+      } catch (err) {
+        console.error('Supabase update after deleting tag failed:', err);
+      }
+    }
+
+    setActiveFilter('all');
+    showToast(`Tag "${cleanLabel || label}" deleted successfully! 🗑️`);
   };
 
   const handleDeleteSeries = async (seriesName, option) => {
@@ -901,9 +957,9 @@ export default function App() {
         <div className="flex justify-center flex-wrap gap-2 mb-10 select-none">
           {[
             { id: 'all', label: 'All Books' },
-            { id: 'series', label: 'Series 📚' },
             { id: 'read', label: 'Read ✓' },
             { id: 'reading', label: 'Currently Reading' },
+            { id: 'series', label: 'Series 📚' },
             { id: 'favourites', label: 'Favourites ❤️' },
             { id: 'fiction', label: 'Fiction 📖' },
             { id: 'non-fiction', label: 'Non-fiction 🧠' },
@@ -912,9 +968,10 @@ export default function App() {
             { id: 'self-help', label: 'Self Help 🌱' },
             { id: 'literary', label: 'Literary 📜' },
             { id: 'hindi', label: 'Hindi Lit 🇮🇳' },
-            ...customTags.map(tag => ({ id: tag.toLowerCase(), label: tag })),
-            { id: 'hidden', label: 'Hidden 🙈' },
-          ].map((tab) => (
+          ].filter(tab => !deletedDefaultTags.includes(tab.id))
+           .concat(customTags.map(tag => ({ id: tag.toLowerCase(), label: tag })))
+           .concat([{ id: 'hidden', label: 'Hidden 🙈' }])
+           .map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveFilter(tab.id)}
@@ -941,7 +998,37 @@ export default function App() {
         </div>
 
         {/* Add Book trigger button row */}
-        <div className="flex justify-center mb-12">
+        <div className="flex justify-center items-center gap-3 mb-12">
+          {/* Delete Tag Button (only visible for non-excluded tags) */}
+          {!['all', 'read', 'reading', 'series', 'favourites', 'hidden'].includes(activeFilter) && (
+            <button
+              onClick={() => {
+                const allTabs = [
+                  { id: 'all', label: 'All Books' },
+                  { id: 'read', label: 'Read ✓' },
+                  { id: 'reading', label: 'Currently Reading' },
+                  { id: 'series', label: 'Series 📚' },
+                  { id: 'favourites', label: 'Favourites ❤️' },
+                  { id: 'fiction', label: 'Fiction 📖' },
+                  { id: 'non-fiction', label: 'Non-fiction 🧠' },
+                  { id: 'romance', label: 'Romance 💕' },
+                  { id: 'thriller', label: 'Thriller 🔪' },
+                  { id: 'self-help', label: 'Self Help 🌱' },
+                  { id: 'literary', label: 'Literary 📜' },
+                  { id: 'hindi', label: 'Hindi Lit 🇮🇳' },
+                  ...customTags.map(tag => ({ id: tag.toLowerCase(), label: tag })),
+                  { id: 'hidden', label: 'Hidden 🙈' },
+                ];
+                const currentTab = allTabs.find(t => t.id === activeFilter);
+                if (currentTab) {
+                  handleDeleteTag(currentTab.id, currentTab.label);
+                }
+              }}
+              className="flex items-center gap-2 bg-red-950/40 border border-red-500/35 hover:bg-red-950/60 py-2.5 px-6 rounded-full text-red-400 font-sans font-semibold text-xs tracking-wide cursor-pointer transition-all shadow-md active:scale-95"
+            >
+              🗑️ Delete Tag
+            </button>
+          )}
           <button
             onClick={() => setIsAddOpen(true)}
             className="flex items-center gap-2 bg-[#d4a853]/10 border border-[#d4a853]/45 hover:bg-[#d4a853]/15 py-2.5 px-6 rounded-full text-[#d4a853] font-sans font-semibold text-xs tracking-wide cursor-pointer transition-all shadow-md active:scale-95"
@@ -949,8 +1036,6 @@ export default function App() {
             ➕ Add a Book
           </button>
         </div>
-
-        {/* Books Card Grid layout */}
         {activeFilter === 'series' ? (
           <div className="flex flex-col gap-10 mt-8">
             {Object.keys(seriesGroups).length === 0 ? (
