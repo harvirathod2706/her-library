@@ -48,6 +48,9 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
   const [pages, setPages] = useState(350);
   const [coverFile, setCoverFile] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
+  const [similar, setSimilar] = useState([]);
+  const [seriesName, setSeriesName] = useState('');
+  const [seriesBookTitles, setSeriesBookTitles] = useState([]);
 
   useEffect(() => {
     if (bookToEdit) {
@@ -57,6 +60,9 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
       setDescription(bookToEdit.note || '');
       setPages(bookToEdit.pages || 350);
       setCoverBase64(bookToEdit.custom_cover || '');
+      setSimilar(bookToEdit.similar || []);
+      setSeriesName(bookToEdit.series_name || '');
+      setSeriesBookTitles([]);
     } else {
       setTitle('');
       setAuthor('');
@@ -64,6 +70,9 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
       setDescription('');
       setPages(350);
       setCoverBase64('');
+      setSimilar([]);
+      setSeriesName('');
+      setSeriesBookTitles([]);
     }
     setCoverFile(null);
     setPdfFile(null);
@@ -164,6 +173,7 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
       if (details.description) setDescription(details.description);
       if (details.pages) setPages(details.pages);
       if (details.coverUrl) setCoverBase64(details.coverUrl);
+      if (details.similar) setSimilar(details.similar);
       onShowToast("✨ Details auto-filled perfectly using Gemini AI!");
     } catch (err) {
       console.warn("Gemini auto-fill failed, using local fallback:", err);
@@ -228,6 +238,8 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
       genres.push("literary");
     }
 
+    const isSeriesActive = tagList.map(t => t.toLowerCase()).includes('series');
+
     const finalBook = {
       title: title.trim(),
       author: author.trim(),
@@ -238,9 +250,10 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
       tags: tagList,
       note: description.trim(),
       pages: pages,
-      similar: bookToEdit ? bookToEdit.similar : [],
+      similar: similar,
       custom_cover: coverBase64 || null,
-      current_page: bookToEdit ? Math.min(pages, bookToEdit.current_page) : (status === "read" ? pages : 0)
+      current_page: bookToEdit ? Math.min(pages, bookToEdit.current_page) : (status === "read" ? pages : 0),
+      series_name: isSeriesActive ? seriesName.trim() : null
     };
 
     if (bookToEdit) {
@@ -248,6 +261,31 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
     } else {
       onAddBook(finalBook, coverFile, pdfFile);
     }
+
+    if (isSeriesActive && seriesBookTitles.length > 0) {
+      seriesBookTitles.forEach((extraTitle) => {
+        const trimmedExtra = extraTitle.trim();
+        if (trimmedExtra) {
+          const extraBook = {
+            title: trimmedExtra,
+            author: author.trim(),
+            status: "want",
+            icon: "📚",
+            theme: themes[Math.floor(Math.random() * themes.length)],
+            genres: genres,
+            tags: [...tagList],
+            note: `Part of the series: ${seriesName.trim()}`,
+            pages: 350,
+            similar: [],
+            custom_cover: null,
+            current_page: 0,
+            series_name: seriesName.trim()
+          };
+          onAddBook(extraBook, null, null);
+        }
+      });
+    }
+
     handleClose();
   };
 
@@ -260,11 +298,14 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
     setCoverBase64('');
     setCoverFile(null);
     setPdfFile(null);
+    setSimilar([]);
+    setSeriesName('');
+    setSeriesBookTitles([]);
     onClose();
   };
 
   const DEFAULT_TAGS = [
-    "Fiction", "Non-fiction", "Romance 💕", "Thriller 🔪", "Self Help 🌱", 
+    "Series", "Fiction", "Non-fiction", "Romance 💕", "Thriller 🔪", "Self Help 🌱", 
     "Mystery 🔍", "Fantasy 🔮", "Emotional 🥺", "Classic 📜", "Hindi Lit 🇮🇳", 
     "Dystopian 💫", "Philosophy 🧠"
   ];
@@ -459,6 +500,21 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
             />
           </div>
 
+          {/* Series Name (shown only if 'Series' tag is active) */}
+          {tags.split(',').map(t => t.trim().toLowerCase()).includes('series') && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[#a89880] font-medium tracking-wide">Series Name</label>
+              <input 
+                type="text" 
+                value={seriesName}
+                onChange={(e) => setSeriesName(e.target.value)}
+                placeholder="e.g. A Court of Thorns and Roses" 
+                className="bg-white/[0.04] border border-[#d4a853]/20 rounded-lg p-2.5 text-[#e8dcc8] font-lora text-sm outline-none form-input-focus"
+                required
+              />
+            </div>
+          )}
+
           {/* Form Actions */}
           <div className="flex justify-between items-center gap-4 mt-4">
             <button 
@@ -475,6 +531,48 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
               {bookToEdit ? '💾 Save Changes' : '💾 Add Book'}
             </button>
           </div>
+
+          {/* Additional Books in Series Section (below add book button) */}
+          {tags.split(',').map(t => t.trim().toLowerCase()).includes('series') && (
+            <div className="border-t border-[#d4a853]/15 pt-4 mt-4 flex flex-col gap-3">
+              <div className="flex justify-between items-center">
+                <label className="text-[#a89880] font-medium tracking-wide">Add other books to this series:</label>
+                <button
+                  type="button"
+                  onClick={() => setSeriesBookTitles([...seriesBookTitles, ''])}
+                  className="text-[10px] bg-[#d4a853]/10 border border-[#d4a853]/40 hover:bg-[#d4a853]/20 px-2.5 py-1 rounded-full text-[#d4a853] font-bold cursor-pointer transition-colors font-sans"
+                >
+                  + Add Book
+                </button>
+              </div>
+              {seriesBookTitles.map((item, idx) => (
+                <div key={idx} className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={item}
+                    onChange={(e) => {
+                      const updated = [...seriesBookTitles];
+                      updated[idx] = e.target.value;
+                      setSeriesBookTitles(updated);
+                    }}
+                    placeholder={`Book ${idx + 2} title`}
+                    className="flex-1 bg-white/[0.04] border border-[#d4a853]/20 rounded-lg p-2.5 text-[#e8dcc8] font-lora text-xs outline-none"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = seriesBookTitles.filter((_, i) => i !== idx);
+                      setSeriesBookTitles(updated);
+                    }}
+                    className="text-red-400 hover:text-red-500 font-bold p-2 cursor-pointer font-sans"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </form>
       </div>
     </div>

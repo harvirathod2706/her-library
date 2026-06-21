@@ -59,7 +59,7 @@ function ProgressRing({ pct }) {
   );
 }
 
-function BookCard({ book, index, onClick }) {
+export function BookCard({ book, index, onClick }) {
   const fileName = getBookFileName(book.title);
   const [imgSrc, setImgSrc] = useState(book.custom_cover || `/Covers/${fileName}.jpg`);
   const [fallbackFormat, setFallbackFormat] = useState('png'); // jpg -> png -> jpeg -> fallbackText

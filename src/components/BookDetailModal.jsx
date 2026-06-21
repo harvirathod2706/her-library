@@ -202,7 +202,7 @@ export default function BookDetailModal({
                 <button
                   key={title}
                   onClick={() => onRecommendClick(title)}
-                  className="font-sans text-[10px] bg-white/[0.04] border border-white/5 hover:border-[#d4a853]/40 hover:bg-[#d4a853]/5 text-[#a89880] hover:text-[#d4a853] px-3 py-1 rounded-full cursor-pointer transition-all"
+                  className="font-sans text-[10px] bg-white/[0.04] border border-white/5 hover:border-[#d4a853]/40 hover:bg-[#d4a853]/5 text-[#a89880] hover:text-[#d4a853] px-3 py-1 rounded-full cursor-pointer transition-all max-w-full truncate text-left"
                 >
                   📚 {title}
                 </button>

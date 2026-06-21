@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import LockScreen from './components/LockScreen';
 import Hero from './components/Hero';
 import Stats from './components/Stats';
-import BookGrid, { getBookStatus, getBookFileName } from './components/BookGrid';
+import BookGrid, { getBookStatus, getBookFileName, BookCard } from './components/BookGrid';
 import BookShelf from './components/BookShelf';
 import BookDetailModal from './components/BookDetailModal';
 import AddBookModal from './components/AddBookModal';
@@ -216,6 +216,35 @@ export default function App() {
           .eq('id', id);
       } catch (err) {
         console.error('Supabase toggle hide failed:', err);
+      }
+    }
+  };
+
+  const handleToggleSeriesHide = async (seriesName, hide) => {
+    const updated = books.map((b) => {
+      const matchSeries = b.series_name === seriesName || 
+        (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
+      if (matchSeries) {
+        return { ...b, is_hidden: hide };
+      }
+      return b;
+    });
+
+    syncBooksState(updated);
+    showToast(hide ? `Series "${seriesName}" hidden from all lists 🙈` : `Series "${seriesName}" is now visible in all lists 👁️`);
+
+    // Close details modal if open on a book in this series
+    setSelectedBook(null);
+
+    // Supabase update
+    if (hasSupabase) {
+      try {
+        await supabase
+          .from('books')
+          .update({ is_hidden: hide })
+          .eq('series_name', seriesName);
+      } catch (err) {
+        console.error('Supabase toggle series hide failed:', err);
       }
     }
   };
@@ -545,6 +574,29 @@ export default function App() {
     }
   });
 
+  // Group books by series for Series tab
+  const seriesGroups = {};
+  activeBooks.forEach((book) => {
+    const hasSeriesTag = book.tags?.some(t => t.toLowerCase() === 'series');
+    const hasSeriesName = !!book.series_name;
+    if (hasSeriesTag || hasSeriesName) {
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchSearch =
+          book.title.toLowerCase().includes(q) ||
+          book.author.toLowerCase().includes(q) ||
+          (book.series_name && book.series_name.toLowerCase().includes(q)) ||
+          (book.tags && book.tags.some((t) => t.toLowerCase().includes(q)));
+        if (!matchSearch) return;
+      }
+      const sName = book.series_name || "Unnamed Series";
+      if (!seriesGroups[sName]) {
+        seriesGroups[sName] = [];
+      }
+      seriesGroups[sName].push(book);
+    }
+  });
+
   // Calculate statistics (using non-deleted active books)
   const statsTotal = activeBooks.filter(b => !b.is_hidden).length;
   const statsRead = activeBooks.filter(b => !b.is_hidden && getBookStatus(b) === 'read').length;
@@ -631,6 +683,7 @@ export default function App() {
         <div className="flex justify-center flex-wrap gap-2 mb-10 select-none">
           {[
             { id: 'all', label: 'All Books' },
+            { id: 'series', label: 'Series 📚' },
             { id: 'read', label: 'Read ✓' },
             { id: 'reading', label: 'Currently Reading' },
             { id: 'fiction', label: 'Fiction 📖' },
@@ -666,7 +719,52 @@ export default function App() {
         </div>
 
         {/* Books Card Grid layout */}
-        {isLoading ? (
+        {activeFilter === 'series' ? (
+          <div className="flex flex-col gap-10 mt-8">
+            {Object.keys(seriesGroups).length === 0 ? (
+              <div className="text-center font-lora italic text-[#a89880] py-16 text-base">
+                No series found... yet 📚
+              </div>
+            ) : (
+              Object.entries(seriesGroups).map(([seriesName, seriesBooks]) => {
+                const allHidden = seriesBooks.every(b => b.is_hidden);
+                return (
+                  <div key={seriesName} className="border border-[#d4a853]/15 rounded-2xl p-6 bg-white/[0.02] shadow-sm">
+                    <div className="flex justify-between items-center border-b border-[#d4a853]/10 pb-3 mb-6 flex-wrap gap-4">
+                      <div>
+                        <h3 className="font-playfair text-xl font-bold text-[#e8dcc8]">
+                          📦 Series: <span className="text-[#d4a853]">{seriesName}</span>
+                        </h3>
+                        <p className="font-sans text-[10px] text-[#a89880] mt-1">
+                          {seriesBooks.length} book{seriesBooks.length === 1 ? '' : 's'} in this series
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleToggleSeriesHide(seriesName, !allHidden)}
+                        className={`font-sans text-[10px] px-3.5 py-1.5 rounded-full border transition-all cursor-pointer flex items-center gap-1.5
+                          ${allHidden 
+                            ? 'bg-emerald-950/40 border-emerald-500/30 text-[#4ade80] hover:bg-emerald-950/60' 
+                            : 'bg-zinc-800/40 border-zinc-700 text-[#a89880] hover:bg-zinc-800/70 hover:text-white'}`}
+                      >
+                        {allHidden ? '👁️ Show Series' : '🙈 Hide Series from ALL'}
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-7">
+                      {seriesBooks.map((book, idx) => (
+                        <BookCard 
+                          key={book.id} 
+                          book={book} 
+                          index={idx} 
+                          onClick={setSelectedBook} 
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : isLoading ? (
           <div className="text-center font-lora italic text-[#a89880] py-16 text-base animate-pulse">
             Opening your pages... 📖
           </div>
@@ -685,9 +783,9 @@ export default function App() {
           Happy Birthday, <span className="text-[#c4869a]">Harviii</span>
         </div>
         <div className="font-lora text-[0.88rem] leading-relaxed text-[#a89880] italic max-w-md mx-auto mt-5">
-          "She is too fond of books, and it has turned her brain." <br />
-          <span className="ml-[250px]">— Louisa May Alcott</span>
-          <br /><br />
+          "She is too fond of books, and it has turned her brain."
+          <span className="block text-right mt-2 text-[#d4a853]">— Louisa May Alcott</span>
+          <br />
           May every chapter of your life be as <br />beautiful as the books you've read. 🌸
         </div>
         <div className="text-[10px] text-[#a89880]/60 uppercase tracking-[0.12em] font-sans mt-12">
