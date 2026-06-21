@@ -111,26 +111,17 @@ export default function BookDetailModal({
             
             {/* Tags wrapper */}
             <div className="flex flex-wrap gap-1.5 mt-4 items-center">
-              {book.tags && book.tags.map((tag) => (
-                <span key={tag} className="font-sans text-[10px] bg-white/[0.04] border border-white/5 text-[#a89880] px-2 py-0.5 rounded-full">
-                  {tag}
-                </span>
-              ))}
+              {book.tags && book.tags
+                .filter((tag) => tag.toLowerCase() !== 'series' && tag.toLowerCase() !== 'favourites')
+                .map((tag) => (
+                  <span key={tag} className="font-sans text-[10px] bg-white/[0.04] border border-white/5 text-[#a89880] px-2 py-0.5 rounded-full">
+                    {tag}
+                  </span>
+                ))
+              }
               <span className={`font-sans text-[10px] px-2 py-0.5 rounded-full ${statusInfo.cls}`}>
                 {statusInfo.label}
               </span>
-              
-              {/* Like / Favourite Toggle Button */}
-              <button
-                onClick={() => onToggleFavourite(book.id)}
-                className={`font-sans text-[10px] px-2.5 py-0.5 rounded-full border cursor-pointer transition-all flex items-center gap-1.5 select-none
-                  ${book.tags?.some(t => t.toLowerCase() === 'favourites')
-                    ? 'bg-rose-950/40 border-rose-500/30 text-rose-400 hover:bg-rose-950/60'
-                    : 'bg-white/[0.02] border-white/10 text-[#a89880] hover:bg-white/[0.04] hover:text-[#e8dcc8]'}`}
-                title={book.tags?.some(t => t.toLowerCase() === 'favourites') ? "Remove from Favourites" : "Add to Favourites"}
-              >
-                <span>{book.tags?.some(t => t.toLowerCase() === 'favourites') ? '❤️ Liked' : '🤍 Like'}</span>
-              </button>
             </div>
 
             {/* Note block */}
@@ -173,6 +164,28 @@ export default function BookDetailModal({
                 className="w-16 bg-white/[0.04] border border-[#d4a853]/25 rounded-lg px-2 py-1.5 text-center text-[#e8dcc8] font-semibold text-sm outline-none form-input-focus"
                 min={1}
               />
+            </div>
+
+            {/* Like and Series Tag Wrapper */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Like / Favourite Toggle Button */}
+              <button
+                onClick={() => onToggleFavourite(book.id)}
+                className={`font-sans text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-all flex items-center gap-1.5 select-none
+                  ${book.tags?.some(t => t.toLowerCase() === 'favourites')
+                    ? 'bg-rose-950/40 border-rose-500/30 text-rose-400 hover:bg-rose-950/60'
+                    : 'bg-white/[0.02] border-white/10 text-[#a89880] hover:bg-white/[0.04] hover:text-[#e8dcc8]'}`}
+                title={book.tags?.some(t => t.toLowerCase() === 'favourites') ? "Remove from Favourites" : "Add to Favourites"}
+              >
+                <span>{book.tags?.some(t => t.toLowerCase() === 'favourites') ? '❤️ Liked' : '🤍 Like'}</span>
+              </button>
+
+              {/* Series Tag */}
+              {book.series_name && (
+                <span className="font-sans text-xs bg-amber-950/30 border border-[#d4a853]/35 text-[#d4a853] px-3 py-1.5 rounded-lg flex items-center gap-1 select-none" title={`Series: ${book.series_name}`}>
+                  📦 {book.series_name}
+                </span>
+              )}
             </div>
 
             <button 
