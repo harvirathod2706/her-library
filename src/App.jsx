@@ -344,7 +344,7 @@ export default function App() {
           (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
         if (match) {
           const updatedTags = (b.tags || []).filter(t => t.toLowerCase() !== 'series');
-          return { ...b, series_name: null, tags: updatedTags };
+          return { ...b, series_name: null, tags: updatedTags, is_series: false };
         }
         return b;
       });
@@ -358,7 +358,7 @@ export default function App() {
             const updatedTags = (book.tags || []).filter(t => t.toLowerCase() !== 'series');
             await supabase
               .from('books')
-              .update({ series_name: null, tags: updatedTags })
+              .update({ series_name: null, tags: updatedTags, is_series: false })
               .eq('id', book.id);
           }
         } catch (err) {
@@ -400,7 +400,7 @@ export default function App() {
         const currentTags = b.tags || [];
         const hasSeriesTag = currentTags.some(t => t.toLowerCase() === 'series');
         const updatedTags = hasSeriesTag ? currentTags : [...currentTags, 'Series'];
-        return { ...b, series_name: seriesName, tags: updatedTags };
+        return { ...b, series_name: seriesName, tags: updatedTags, is_series: true };
       }
       return b;
     });
@@ -414,7 +414,7 @@ export default function App() {
         if (updatedBook) {
           await supabase
             .from('books')
-            .update({ series_name: seriesName, tags: updatedBook.tags })
+            .update({ series_name: seriesName, tags: updatedBook.tags, is_series: true })
             .eq('id', bookId);
         }
       } catch (err) {
@@ -429,7 +429,7 @@ export default function App() {
         const currentTags = b.tags || [];
         const hasSeriesTag = currentTags.some(t => t.toLowerCase() === 'series');
         const updatedTags = hasSeriesTag ? currentTags : [...currentTags, 'Series'];
-        return { ...b, series_name: seriesName, tags: updatedTags };
+        return { ...b, series_name: seriesName, tags: updatedTags, is_series: true };
       }
       return b;
     });
@@ -445,7 +445,7 @@ export default function App() {
           if (updatedBook) {
             await supabase
               .from('books')
-              .update({ series_name: seriesName, tags: updatedBook.tags })
+              .update({ series_name: seriesName, tags: updatedBook.tags, is_series: true })
               .eq('id', bookId);
           }
         }
