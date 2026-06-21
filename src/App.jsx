@@ -22,6 +22,15 @@ export default function App() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Custom tags, Series delete and add states
+  const [customTags, setCustomTags] = useState(() => {
+    const cached = localStorage.getItem('her_library_custom_tags');
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [seriesToDelete, setSeriesToDelete] = useState(null);
+  const [seriesForAddingBook, setSeriesForAddingBook] = useState(null);
+  const [tagForAddingBook, setTagForAddingBook] = useState(null);
+
   // Modals state
   const [selectedBook, setSelectedBook] = useState(null);
   const [activeReadingBook, setActiveReadingBook] = useState(null);
@@ -249,6 +258,210 @@ export default function App() {
     }
   };
 
+  const handleCreateTag = (name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setCustomTags((prev) => {
+      if (prev.some(t => t.toLowerCase() === trimmed.toLowerCase())) return prev;
+      const updated = [...prev, trimmed];
+      localStorage.setItem('her_library_custom_tags', JSON.stringify(updated));
+      return updated;
+    });
+    showToast(`Tag "${trimmed}" created! 🏷️`);
+  };
+
+  const handleDeleteSeries = async (seriesName, option) => {
+    if (option === 'metadata_only') {
+      const updated = books.map((b) => {
+        const match = b.series_name === seriesName || 
+          (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
+        if (match) {
+          const updatedTags = (b.tags || []).filter(t => t.toLowerCase() !== 'series');
+          return { ...b, series_name: null, tags: updatedTags };
+        }
+        return b;
+      });
+      syncBooksState(updated);
+      showToast(`Series metadata removed. Books kept! 📦`);
+      
+      if (hasSupabase) {
+        try {
+          await supabase
+            .from('books')
+            .update({ series_name: null })
+            .eq('series_name', seriesName);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    } else if (option === 'all_books') {
+      const updated = books.filter((b) => {
+        const match = b.series_name === seriesName || 
+          (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
+        return !match;
+      });
+      syncBooksState(updated);
+      showToast(`Series and all its books deleted successfully! 🗑️`);
+      
+      if (hasSupabase) {
+        try {
+          await supabase
+            .from('books')
+            .delete()
+            .eq('series_name', seriesName);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    }
+  };
+
+  const handleAddBookToSeries = async (bookId, seriesName) => {
+    const updated = books.map((b) => {
+      if (b.id === bookId) {
+        const currentTags = b.tags || [];
+        const hasSeriesTag = currentTags.some(t => t.toLowerCase() === 'series');
+        const updatedTags = hasSeriesTag ? currentTags : [...currentTags, 'Series'];
+        return { ...b, series_name: seriesName, tags: updatedTags };
+      }
+      return b;
+    });
+
+    syncBooksState(updated);
+    showToast("Book added to series successfully! 📦✨");
+
+    if (hasSupabase) {
+      try {
+        const bookToUpdate = books.find(b => b.id === bookId);
+        if (bookToUpdate) {
+          const currentTags = bookToUpdate.tags || [];
+          const hasSeriesTag = currentTags.some(t => t.toLowerCase() === 'series');
+          const updatedTags = hasSeriesTag ? currentTags : [...currentTags, 'Series'];
+          await supabase
+            .from('books')
+            .update({ series_name: seriesName, tags: updatedTags })
+            .eq('id', bookId);
+        }
+      } catch (err) {
+        console.error('Supabase add book to series failed:', err);
+      }
+    }
+  };
+
+  const handleAddBookToTag = async (bookId, tagName) => {
+    const updated = books.map((b) => {
+      if (b.id === bookId) {
+        const currentTags = b.tags || [];
+        let updatedTags = [...currentTags];
+        let updatedStatus = b.status;
+        let updatedPage = b.current_page;
+        
+        const normTag = tagName.toLowerCase();
+        if (normTag === 'favourites') {
+          if (!currentTags.some(t => t.toLowerCase() === 'favourites')) {
+            updatedTags.push('Favourites');
+          }
+        } else if (normTag === 'read') {
+          updatedStatus = 'read';
+          updatedPage = b.pages;
+        } else if (normTag === 'reading') {
+          updatedStatus = 'reading';
+          if (b.current_page === 0) updatedPage = 1;
+        } else {
+          if (!currentTags.some(t => t.toLowerCase() === normTag)) {
+            updatedTags.push(tagName);
+          }
+        }
+        return { ...b, tags: updatedTags, status: updatedStatus, current_page: updatedPage };
+      }
+      return b;
+    });
+    
+    syncBooksState(updated);
+    showToast(`Book added to "${tagName}"! 📚✨`);
+    
+    if (hasSupabase) {
+      try {
+        const b = books.find(item => item.id === bookId);
+        if (b) {
+          const currentTags = b.tags || [];
+          let updatedTags = [...currentTags];
+          let updatedStatus = b.status;
+          let updatedPage = b.current_page;
+          
+          const normTag = tagName.toLowerCase();
+          if (normTag === 'favourites') {
+            if (!currentTags.some(t => t.toLowerCase() === 'favourites')) {
+              updatedTags.push('Favourites');
+            }
+          } else if (normTag === 'read') {
+            updatedStatus = 'read';
+            updatedPage = b.pages;
+          } else if (normTag === 'reading') {
+            updatedStatus = 'reading';
+            if (b.current_page === 0) updatedPage = 1;
+          } else {
+            if (!currentTags.some(t => t.toLowerCase() === normTag)) {
+              updatedTags.push(tagName);
+            }
+          }
+          await supabase
+            .from('books')
+            .update({ tags: updatedTags, status: updatedStatus, current_page: updatedPage })
+            .eq('id', bookId);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
+  const handleToggleFavourite = async (id) => {
+    const updated = books.map((b) => {
+      if (b.id === id) {
+        const currentTags = b.tags || [];
+        const isFav = currentTags.some(t => t.toLowerCase() === 'favourites');
+        const updatedTags = isFav 
+          ? currentTags.filter(t => t.toLowerCase() !== 'favourites')
+          : [...currentTags, 'Favourites'];
+        return { ...b, tags: updatedTags };
+      }
+      return b;
+    });
+
+    syncBooksState(updated);
+    
+    setSelectedBook(prev => {
+      if (prev && prev.id === id) {
+        const isFav = prev.tags?.some(t => t.toLowerCase() === 'favourites');
+        const updatedTags = isFav 
+          ? prev.tags.filter(t => t.toLowerCase() !== 'favourites')
+          : [...(prev.tags || []), 'Favourites'];
+        return { ...prev, tags: updatedTags };
+      }
+      return prev;
+    });
+
+    if (hasSupabase) {
+      try {
+        const bookToUpdate = books.find(b => b.id === id);
+        if (bookToUpdate) {
+          const currentTags = bookToUpdate.tags || [];
+          const isFav = currentTags.some(t => t.toLowerCase() === 'favourites');
+          const updatedTags = isFav 
+            ? currentTags.filter(t => t.toLowerCase() !== 'favourites')
+            : [...currentTags, 'Favourites'];
+          await supabase
+            .from('books')
+            .update({ tags: updatedTags })
+            .eq('id', id);
+        }
+      } catch (err) {
+        console.error('Supabase toggle favourite failed:', err);
+      }
+    }
+  };
+
   const handleDeleteBook = async (id, title) => {
     if (confirm(`Are you sure you want to delete "${title}"?`)) {
       // Physically remove from local state
@@ -294,12 +507,17 @@ export default function App() {
   };
 
   const handleAddBook = async (newBookData, coverFile, pdfFile) => {
-    const tempId = Date.now();
+    const tempId = Date.now() + Math.floor(Math.random() * 100000);
     const fullNewBook = { ...newBookData, id: tempId };
 
-    // Optimistically add to state
-    const updated = [...books, fullNewBook];
-    syncBooksState(updated);
+    // Optimistically add to state using functional updater to avoid stale state issues
+    setBooks((prev) => {
+      const updated = [...prev, fullNewBook];
+      if (!hasSupabase) {
+        localStorage.setItem('her_library_books', JSON.stringify(updated));
+      }
+      return updated;
+    });
     showToast(`✨ Adding "${newBookData.title}" to your library...`);
 
     // Supabase update
@@ -570,7 +788,7 @@ export default function App() {
         if (hasNonFictionTag) return true;
         return !!isNonFiction;
       }
-      return book.genres && book.genres.includes(activeFilter);
+      return (book.genres && book.genres.includes(activeFilter)) || (book.tags && book.tags.some(t => t.toLowerCase() === activeFilter));
     }
   });
 
@@ -686,6 +904,7 @@ export default function App() {
             { id: 'series', label: 'Series 📚' },
             { id: 'read', label: 'Read ✓' },
             { id: 'reading', label: 'Currently Reading' },
+            { id: 'favourites', label: 'Favourites ❤️' },
             { id: 'fiction', label: 'Fiction 📖' },
             { id: 'non-fiction', label: 'Non-fiction 🧠' },
             { id: 'romance', label: 'Romance 💕' },
@@ -693,6 +912,7 @@ export default function App() {
             { id: 'self-help', label: 'Self Help 🌱' },
             { id: 'literary', label: 'Literary 📜' },
             { id: 'hindi', label: 'Hindi Lit 🇮🇳' },
+            ...customTags.map(tag => ({ id: tag.toLowerCase(), label: tag })),
             { id: 'hidden', label: 'Hidden 🙈' },
           ].map((tab) => (
             <button
@@ -706,6 +926,18 @@ export default function App() {
               {tab.label}
             </button>
           ))}
+          {/* Create Tag Tab */}
+          <button
+            onClick={() => {
+              const name = prompt("Enter new tag name:");
+              if (name && name.trim()) {
+                handleCreateTag(name);
+              }
+            }}
+            className="font-sans text-xs font-medium tracking-wide px-4 py-2 rounded-full border border-dashed border-[#d4a853]/40 bg-[#d4a853]/5 text-[#d4a853] hover:bg-[#d4a853]/10 cursor-pointer transition-all select-none"
+          >
+            ➕ Create Tag
+          </button>
         </div>
 
         {/* Add Book trigger button row */}
@@ -739,15 +971,23 @@ export default function App() {
                           {seriesBooks.length} book{seriesBooks.length === 1 ? '' : 's'} in this series
                         </p>
                       </div>
-                      <button
-                        onClick={() => handleToggleSeriesHide(seriesName, !allHidden)}
-                        className={`font-sans text-[10px] px-3.5 py-1.5 rounded-full border transition-all cursor-pointer flex items-center gap-1.5
-                          ${allHidden 
-                            ? 'bg-emerald-950/40 border-emerald-500/30 text-[#4ade80] hover:bg-emerald-950/60' 
-                            : 'bg-zinc-800/40 border-zinc-700 text-[#a89880] hover:bg-zinc-800/70 hover:text-white'}`}
-                      >
-                        {allHidden ? '👁️ Show Series' : '🙈 Hide Series from ALL'}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSeriesToDelete(seriesName)}
+                          className="font-sans text-[10px] px-3.5 py-1.5 rounded-full border border-red-500/35 bg-red-950/40 text-red-400 hover:bg-red-950/60 cursor-pointer transition-colors"
+                        >
+                          🗑️ Delete Series
+                        </button>
+                        <button
+                          onClick={() => handleToggleSeriesHide(seriesName, !allHidden)}
+                          className={`font-sans text-[10px] px-3.5 py-1.5 rounded-full border transition-all cursor-pointer flex items-center gap-1.5
+                            ${allHidden 
+                              ? 'bg-emerald-950/40 border-emerald-500/30 text-[#4ade80] hover:bg-emerald-950/60' 
+                              : 'bg-zinc-800/40 border-zinc-700 text-[#a89880] hover:bg-zinc-800/70 hover:text-white'}`}
+                        >
+                          {allHidden ? '👁️ Show Series' : '🙈 Hide Series from ALL'}
+                        </button>
+                      </div>
                     </div>
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-7">
                       {seriesBooks.map((book, idx) => (
@@ -758,6 +998,14 @@ export default function App() {
                           onClick={setSelectedBook} 
                         />
                       ))}
+                      {/* Add Book to Series Dotted Button */}
+                      <button
+                        onClick={() => setSeriesForAddingBook(seriesName)}
+                        className="relative w-full aspect-[2/3] rounded-r-xl rounded-l-md border-2 border-dashed border-[#d4a853]/30 hover:border-[#d4a853]/60 hover:bg-[#d4a853]/5 flex flex-col items-center justify-center gap-2 text-[#a89880] hover:text-[#d4a853] transition-all cursor-pointer group"
+                      >
+                        <span className="text-3xl group-hover:scale-110 transition-transform">➕</span>
+                        <span className="font-sans text-[11px] font-semibold tracking-wide">Add Book to Series</span>
+                      </button>
                     </div>
                   </div>
                 );
@@ -769,7 +1017,18 @@ export default function App() {
             Opening your pages... 📖
           </div>
         ) : (
-          <BookGrid books={filteredBooks} onBookSelect={setSelectedBook} />
+          <BookGrid 
+            books={filteredBooks} 
+            onBookSelect={setSelectedBook} 
+            onAddClick={() => {
+              if (activeFilter === 'all') {
+                setIsAddOpen(true);
+              } else {
+                setTagForAddingBook(activeFilter);
+              }
+            }}
+            showAddButton={activeFilter !== 'hidden'}
+          />
         )}
 
         {/* Spine Shelf View */}
@@ -812,6 +1071,7 @@ export default function App() {
             setIsAddOpen(true);
           }}
           isHidden={selectedBook.is_hidden}
+          onToggleFavourite={handleToggleFavourite}
         />
       )}
 
@@ -835,6 +1095,8 @@ export default function App() {
         bookToEdit={bookToEdit}
         onShowToast={showToast}
         books={books}
+        customTags={customTags}
+        onCreateTag={handleCreateTag}
       />
 
       <ExploreAddModal
@@ -843,6 +1105,125 @@ export default function App() {
         onClose={() => setExploreBookTitle('')}
         onAddBookClick={handleAddBookFromRecommendation}
       />
+
+      {/* Series Delete Confirmation Modal */}
+      {seriesToDelete && (
+        <div className="fixed inset-0 z-[10000] bg-black/85 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="relative bg-[#0d1117] border border-[#d4a853]/25 w-full max-w-md rounded-2xl p-6 text-center text-[#e8dcc8] shadow-2xl flex flex-col items-center gap-4 font-lora">
+            <div className="text-4xl">⚠️</div>
+            <h3 className="font-playfair text-xl font-bold">Delete Series: "{seriesToDelete}"</h3>
+            <p className="font-sans text-xs text-[#a89880] leading-relaxed">
+              Are you sure you want to delete this series? Please select one of the options below:
+            </p>
+            <div className="flex flex-col gap-2.5 w-full mt-4 font-sans text-xs">
+              <button
+                onClick={() => {
+                  handleDeleteSeries(seriesToDelete, 'metadata_only');
+                  setSeriesToDelete(null);
+                }}
+                className="w-full py-2.5 px-4 bg-white/[0.04] border border-[#d4a853]/35 hover:bg-[#d4a853]/5 text-[#d4a853] font-bold rounded-lg cursor-pointer transition-all"
+              >
+                Delete Series metadata only (Keep books)
+              </button>
+              <button
+                onClick={() => {
+                  handleDeleteSeries(seriesToDelete, 'all_books');
+                  setSeriesToDelete(null);
+                }}
+                className="w-full py-2.5 px-4 bg-red-950/40 border border-red-500/40 hover:bg-red-950/60 text-red-400 font-bold rounded-lg cursor-pointer transition-all"
+              >
+                Delete all books in the series (Delete books & series)
+              </button>
+              <button
+                onClick={() => setSeriesToDelete(null)}
+                className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-[#e8dcc8] rounded-lg cursor-pointer transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Choose book to add to Series dialog */}
+      {seriesForAddingBook && (
+        <div className="fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="relative bg-[#0d1117] border border-[#d4a853]/25 w-full max-w-md rounded-2xl p-6 text-[#e8dcc8] shadow-2xl flex flex-col gap-4 font-lora max-h-[80vh]">
+            <h3 className="font-playfair text-lg font-bold">
+              Select Book for Series: <span className="text-[#d4a853]">{seriesForAddingBook}</span>
+            </h3>
+            <button
+              onClick={() => setSeriesForAddingBook(null)}
+              className="absolute right-4 top-4 text-[#a89880] hover:text-white bg-none border-none cursor-pointer text-lg"
+            >
+              ✕
+            </button>
+            <div className="overflow-y-auto flex flex-col gap-2 pr-1 max-h-[50vh] no-scrollbar">
+              {activeBooks
+                .filter(b => b.series_name !== seriesForAddingBook)
+                .map(book => (
+                  <button
+                    key={book.id}
+                    onClick={() => {
+                      handleAddBookToSeries(book.id, seriesForAddingBook);
+                      setSeriesForAddingBook(null);
+                    }}
+                    className="flex items-center gap-3 w-full bg-white/[0.02] border border-white/5 hover:border-[#d4a853]/40 hover:bg-[#d4a853]/5 p-2.5 rounded-xl text-left cursor-pointer transition-all text-xs"
+                  >
+                    <span className="text-xl">{book.icon || '📚'}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate text-[#e8dcc8]">{book.title}</div>
+                      <div className="text-[10px] text-[#a89880] truncate">by {book.author}</div>
+                    </div>
+                  </button>
+                ))}
+              {activeBooks.filter(b => b.series_name !== seriesForAddingBook).length === 0 && (
+                <div className="text-center italic text-[#a89880] py-6">No books available to add</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Choose book to add to custom tag dialog */}
+      {tagForAddingBook && (
+        <div className="fixed inset-0 z-[10000] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="relative bg-[#0d1117] border border-[#d4a853]/25 w-full max-w-md rounded-2xl p-6 text-[#e8dcc8] shadow-2xl flex flex-col gap-4 font-lora max-h-[80vh]">
+            <h3 className="font-playfair text-lg font-bold">
+              Select Book to add tag: <span className="text-[#d4a853]">{tagForAddingBook}</span>
+            </h3>
+            <button
+              onClick={() => setTagForAddingBook(null)}
+              className="absolute right-4 top-4 text-[#a89880] hover:text-white bg-none border-none cursor-pointer text-lg"
+            >
+              ✕
+            </button>
+            <div className="overflow-y-auto flex flex-col gap-2 pr-1 max-h-[50vh] no-scrollbar">
+              {activeBooks
+                .filter(b => !b.tags?.some(t => t.toLowerCase() === tagForAddingBook.toLowerCase()))
+                .map(book => (
+                  <button
+                    key={book.id}
+                    onClick={() => {
+                      handleAddBookToTag(book.id, tagForAddingBook);
+                      setTagForAddingBook(null);
+                    }}
+                    className="flex items-center gap-3 w-full bg-white/[0.02] border border-white/5 hover:border-[#d4a853]/40 hover:bg-[#d4a853]/5 p-2.5 rounded-xl text-left cursor-pointer transition-all text-xs"
+                  >
+                    <span className="text-xl">{book.icon || '📚'}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate text-[#e8dcc8]">{book.title}</div>
+                      <div className="text-[10px] text-[#a89880] truncate">by {book.author}</div>
+                    </div>
+                  </button>
+                ))}
+              {activeBooks.filter(b => !b.tags?.some(t => t.toLowerCase() === tagForAddingBook.toLowerCase())).length === 0 && (
+                <div className="text-center italic text-[#a89880] py-6">No books available to add</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI Librarian Chatbot */}
       <ChatbotWidget books={books} />

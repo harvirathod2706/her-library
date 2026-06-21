@@ -154,15 +154,7 @@ export function BookCard({ book, index, onClick }) {
   );
 }
 
-export default function BookGrid({ books, onBookSelect }) {
-  if (books.length === 0) {
-    return (
-      <div className="text-center font-lora italic text-[#a89880] py-16 text-base">
-        No books found... yet 📚
-      </div>
-    );
-  }
-
+export default function BookGrid({ books, onBookSelect, onAddClick, showAddButton = true }) {
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-7 mt-8">
       {books.map((book, index) => (
@@ -173,6 +165,22 @@ export default function BookGrid({ books, onBookSelect }) {
           onClick={onBookSelect} 
         />
       ))}
+      
+      {showAddButton && (
+        <button
+          onClick={onAddClick}
+          className="relative w-full aspect-[2/3] rounded-r-xl rounded-l-md border-2 border-dashed border-[#d4a853]/30 hover:border-[#d4a853]/60 hover:bg-[#d4a853]/5 flex flex-col items-center justify-center gap-2 text-[#a89880] hover:text-[#d4a853] transition-all cursor-pointer group"
+        >
+          <span className="text-3xl group-hover:scale-110 transition-transform">➕</span>
+          <span className="font-sans text-[11px] font-semibold tracking-wide">Add Book</span>
+        </button>
+      )}
+
+      {books.length === 0 && !showAddButton && (
+        <div className="col-span-full text-center font-lora italic text-[#a89880] py-16 text-base">
+          No books found... yet 📚
+        </div>
+      )}
     </div>
   );
 }

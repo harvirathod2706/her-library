@@ -10,7 +10,8 @@ export default function BookDetailModal({
   onRecommendClick,
   onReadBook,
   onEditClick,
-  isHidden 
+  isHidden,
+  onToggleFavourite
 }) {
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(100);
@@ -109,7 +110,7 @@ export default function BookDetailModal({
             </p>
             
             {/* Tags wrapper */}
-            <div className="flex flex-wrap gap-1.5 mt-4">
+            <div className="flex flex-wrap gap-1.5 mt-4 items-center">
               {book.tags && book.tags.map((tag) => (
                 <span key={tag} className="font-sans text-[10px] bg-white/[0.04] border border-white/5 text-[#a89880] px-2 py-0.5 rounded-full">
                   {tag}
@@ -118,6 +119,18 @@ export default function BookDetailModal({
               <span className={`font-sans text-[10px] px-2 py-0.5 rounded-full ${statusInfo.cls}`}>
                 {statusInfo.label}
               </span>
+              
+              {/* Like / Favourite Toggle Button */}
+              <button
+                onClick={() => onToggleFavourite(book.id)}
+                className={`font-sans text-[10px] px-2.5 py-0.5 rounded-full border cursor-pointer transition-all flex items-center gap-1.5 select-none
+                  ${book.tags?.some(t => t.toLowerCase() === 'favourites')
+                    ? 'bg-rose-950/40 border-rose-500/30 text-rose-400 hover:bg-rose-950/60'
+                    : 'bg-white/[0.02] border-white/10 text-[#a89880] hover:bg-white/[0.04] hover:text-[#e8dcc8]'}`}
+                title={book.tags?.some(t => t.toLowerCase() === 'favourites') ? "Remove from Favourites" : "Add to Favourites"}
+              >
+                <span>{book.tags?.some(t => t.toLowerCase() === 'favourites') ? '❤️ Liked' : '🤍 Like'}</span>
+              </button>
             </div>
 
             {/* Note block */}

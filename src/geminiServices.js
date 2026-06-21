@@ -56,7 +56,7 @@ Return a strict JSON object with EXACTLY the following fields:
 }
 If the author is empty in the reference data, fill it in accurately using your knowledge. Make sure 'pages' is a number, not a string. Return ONLY the JSON object. Do not wrap the JSON output in markdown formatting (like \`\`\`json or \`\`\`).`;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -90,12 +90,12 @@ If the author is empty in the reference data, fill it in accurately using your k
   try {
     const cleanText = text.trim().replace(/^```json\s*/i, '').replace(/```$/, '').trim();
     const result = JSON.parse(cleanText);
-    
+
     // Fallbacks if Gemini omitted them or customized them incorrectly
     if (!result.pages && olData?.pages) result.pages = olData.pages;
     if (!result.coverUrl && olData?.coverUrl) result.coverUrl = olData.coverUrl;
     if (!result.author && olData?.author) result.author = olData.author;
-    
+
     return result;
   } catch (err) {
     console.error('Failed to parse Gemini JSON response:', text, err);
@@ -149,7 +149,7 @@ Be highly accurate and avoid hallucinating details. Provide beautifully detailed
     parts: [{ text: message }]
   });
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
     method: 'POST',
