@@ -17,22 +17,22 @@ export default function App() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [books, setBooks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Filters & Search
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Modals state
   const [selectedBook, setSelectedBook] = useState(null);
   const [activeReadingBook, setActiveReadingBook] = useState(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [exploreBookTitle, setExploreBookTitle] = useState('');
   const [bookToEdit, setBookToEdit] = useState(null);
-  
+
   // Particles state
   const [bgParticles, setBgParticles] = useState([]);
   const [bgPetals, setBgPetals] = useState([]);
-  
+
   // Toast state
   const [toastMessage, setToastMessage] = useState('');
 
@@ -49,23 +49,23 @@ export default function App() {
   useEffect(() => {
     async function loadBooks() {
       setIsLoading(true);
-      
+
       if (hasSupabase) {
         try {
           const { data, error } = await supabase
             .from('books')
             .select('*')
             .order('id', { ascending: true });
-            
+
           if (error) throw error;
-          
+
           if (data && data.length > 0) {
             setBooks(data);
           } else {
             // DB is empty, auto-seed with DEFAULT_BOOKS
             const { error: seedError } = await supabase.from('books').insert(DEFAULT_BOOKS);
             if (seedError) throw seedError;
-            
+
             const { data: reloaded } = await supabase
               .from('books')
               .select('*')
@@ -156,7 +156,7 @@ export default function App() {
     });
 
     syncBooksState(updated);
-    
+
     // Recalculate percent for toast message
     const pct = Math.min(100, Math.round((current / total) * 100));
     showToast(`✨ Saved! Page ${current} of ${total} — ${pct}% done`);
@@ -203,7 +203,7 @@ export default function App() {
 
     syncBooksState(updated);
     showToast(nextHidden ? "Book has been hidden from the list 🙈" : "Book is now visible in the library 👁️");
-    
+
     // Close modal if hidden
     setSelectedBook(null);
 
@@ -267,7 +267,7 @@ export default function App() {
   const handleAddBook = async (newBookData, coverFile, pdfFile) => {
     const tempId = Date.now();
     const fullNewBook = { ...newBookData, id: tempId };
-    
+
     // Optimistically add to state
     const updated = [...books, fullNewBook];
     syncBooksState(updated);
@@ -284,20 +284,20 @@ export default function App() {
           const fileExt = file.name.split('.').pop();
           const sanitizedTitle = newBookData.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
           const fileName = `${sanitizedTitle}_${Date.now()}.${fileExt}`;
-          
+
           const { data, error } = await supabase.storage
             .from(bucket)
             .upload(fileName, file, {
               cacheControl: '3600',
               upsert: false
             });
-            
+
           if (error) throw error;
-          
+
           const { data: publicUrlData } = supabase.storage
             .from(bucket)
             .getPublicUrl(fileName);
-            
+
           return publicUrlData.publicUrl;
         };
 
@@ -358,8 +358,8 @@ export default function App() {
     let localCover = updatedBookData.custom_cover;
     let localPdf = targetBook.pdf_url;
 
-    let fullUpdatedBook = { 
-      ...targetBook, 
+    let fullUpdatedBook = {
+      ...targetBook,
       ...updatedBookData,
       custom_cover: localCover,
       pdf_url: localPdf
@@ -377,20 +377,20 @@ export default function App() {
           const fileExt = file.name.split('.').pop();
           const sanitizedTitle = updatedBookData.title.toLowerCase().replace(/[^a-z0-9]/g, '_');
           const fileName = `${sanitizedTitle}_${Date.now()}.${fileExt}`;
-          
+
           const { data, error } = await supabase.storage
             .from(bucket)
             .upload(fileName, file, {
               cacheControl: '3600',
               upsert: false
             });
-            
+
           if (error) throw error;
-          
+
           const { data: publicUrlData } = supabase.storage
             .from(bucket)
             .getPublicUrl(fileName);
-            
+
           return publicUrlData.publicUrl;
         };
 
@@ -399,7 +399,7 @@ export default function App() {
           try {
             const oldCover = targetBook.custom_cover;
             customCoverUrl = await uploadFile('covers', coverFile);
-            
+
             if (oldCover && oldCover.includes('/storage/v1/object/public/covers/')) {
               const oldFileName = oldCover.split('/covers/').pop();
               if (oldFileName) {
@@ -417,7 +417,7 @@ export default function App() {
           try {
             const oldPdf = targetBook.pdf_url;
             pdfUrl = await uploadFile('books', pdfFile);
-            
+
             if (oldPdf && oldPdf.includes('/storage/v1/object/public/books/')) {
               const oldFileName = oldPdf.split('/books/').pop();
               if (oldFileName) {
@@ -486,7 +486,7 @@ export default function App() {
 
   // Filter book operations
   const activeBooks = books.filter((b) => !b.is_deleted);
-  
+
   const filteredBooks = activeBooks.filter((book) => {
     // 1. Search Query Match
     if (searchQuery.trim()) {
@@ -496,7 +496,7 @@ export default function App() {
         book.author.toLowerCase().includes(q) ||
         (book.tags && book.tags.some((t) => t.toLowerCase().includes(q))) ||
         (book.genres && book.genres.some((g) => g.toLowerCase().includes(q)));
-      
+
       if (!matchSearch) return false;
     }
 
@@ -510,11 +510,11 @@ export default function App() {
         return getBookStatus(book) === activeFilter;
       }
       if (activeFilter === 'fiction') {
-        const isNonFiction = book.genres?.includes('self-help') || 
-                             book.tags?.some(t => {
-                               const tl = t.toLowerCase();
-                               return tl.includes('non-fiction') || tl.includes('nonfiction') || tl.includes('self-help') || tl.includes('motivational') || tl.includes('philosophy') || tl.includes('autobiography');
-                             });
+        const isNonFiction = book.genres?.includes('self-help') ||
+          book.tags?.some(t => {
+            const tl = t.toLowerCase();
+            return tl.includes('non-fiction') || tl.includes('nonfiction') || tl.includes('self-help') || tl.includes('motivational') || tl.includes('philosophy') || tl.includes('autobiography');
+          });
         const hasFictionTag = book.tags?.some(t => t.toLowerCase() === 'fiction');
         const hasNonFictionTag = book.tags?.some(t => {
           const tl = t.toLowerCase();
@@ -526,11 +526,11 @@ export default function App() {
         return !isNonFiction;
       }
       if (activeFilter === 'non-fiction') {
-        const isNonFiction = book.genres?.includes('self-help') || 
-                             book.tags?.some(t => {
-                               const tl = t.toLowerCase();
-                               return tl.includes('non-fiction') || tl.includes('nonfiction') || tl.includes('self-help') || tl.includes('motivational') || tl.includes('philosophy') || tl.includes('autobiography');
-                             });
+        const isNonFiction = book.genres?.includes('self-help') ||
+          book.tags?.some(t => {
+            const tl = t.toLowerCase();
+            return tl.includes('non-fiction') || tl.includes('nonfiction') || tl.includes('self-help') || tl.includes('motivational') || tl.includes('philosophy') || tl.includes('autobiography');
+          });
         const hasFictionTag = book.tags?.some(t => t.toLowerCase() === 'fiction');
         const hasNonFictionTag = book.tags?.some(t => {
           const tl = t.toLowerCase();
@@ -556,11 +556,11 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen text-[#e8dcc8] bg-[#0d1117] font-lora">
-      
+
       {/* Background Sparkles */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         {bgParticles.map((p) => (
-          <div 
+          <div
             key={p.id}
             className={`absolute pointer-events-none animate-[float-particle_linear_infinite] ${p.colorClass}`}
             style={{
@@ -574,7 +574,7 @@ export default function App() {
           />
         ))}
         {bgPetals.map((p) => (
-          <div 
+          <div
             key={p.id}
             className="absolute pointer-events-none petal-floating"
             style={{
@@ -618,7 +618,7 @@ export default function App() {
 
         {/* Search Input bar */}
         <div className="flex justify-center mb-8">
-          <input 
+          <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -646,8 +646,8 @@ export default function App() {
               key={tab.id}
               onClick={() => setActiveFilter(tab.id)}
               className={`font-sans text-xs font-medium tracking-wide px-4 py-2 rounded-full border transition-all cursor-pointer
-                ${activeFilter === tab.id 
-                  ? 'bg-[#d4a853]/15 border-[#d4a853] text-[#d4a853] shadow-md shadow-[#d4a853]/5' 
+                ${activeFilter === tab.id
+                  ? 'bg-[#d4a853]/15 border-[#d4a853] text-[#d4a853] shadow-md shadow-[#d4a853]/5'
                   : 'bg-transparent border-[#d4a853]/25 text-[#a89880] hover:bg-[#d4a853]/5 hover:text-[#d4a853]'}`}
             >
               {tab.label}
@@ -657,7 +657,7 @@ export default function App() {
 
         {/* Add Book trigger button row */}
         <div className="flex justify-center mb-12">
-          <button 
+          <button
             onClick={() => setIsAddOpen(true)}
             className="flex items-center gap-2 bg-[#d4a853]/10 border border-[#d4a853]/45 hover:bg-[#d4a853]/15 py-2.5 px-6 rounded-full text-[#d4a853] font-sans font-semibold text-xs tracking-wide cursor-pointer transition-all shadow-md active:scale-95"
           >
@@ -696,7 +696,7 @@ export default function App() {
 
       {/* Modals stack */}
       {selectedBook && (
-        <BookDetailModal 
+        <BookDetailModal
           book={selectedBook}
           onClose={() => setSelectedBook(null)}
           onSaveProgress={handleSaveProgress}
@@ -717,7 +717,7 @@ export default function App() {
       )}
 
       {activeReadingBook && (
-        <PdfReaderModal 
+        <PdfReaderModal
           book={activeReadingBook}
           onClose={() => setActiveReadingBook(null)}
           onSaveProgress={handleSaveProgress}
@@ -725,7 +725,7 @@ export default function App() {
         />
       )}
 
-      <AddBookModal 
+      <AddBookModal
         isOpen={isAddOpen}
         onClose={() => {
           setIsAddOpen(false);
@@ -738,7 +738,7 @@ export default function App() {
         books={books}
       />
 
-      <ExploreAddModal 
+      <ExploreAddModal
         isOpen={!!exploreBookTitle}
         bookTitle={exploreBookTitle}
         onClose={() => setExploreBookTitle('')}

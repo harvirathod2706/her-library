@@ -205,7 +205,7 @@ export default function LockScreen({ onUnlock }) {
               autoComplete="off"
               maxLength={32}
               disabled={lockoutTime > 0}
-              className={`w-full bg-white/[0.04] border border-[#d4a853]/25 rounded-xl py-3.5 pl-6 pr-12 text-[#e8dcc8] font-lora text-base tracking-[0.08em] outline-none text-center transition-all duration-250 form-input-focus
+              className={`w-full bg-white/[0.04] border border-[#d4a853]/25 rounded-xl py-3.5 pl-6 pr-12 text-[#e8dcc8] font-lora text-base placeholder:text-xs tracking-[0.08em] outline-none text-center transition-all duration-250 form-input-focus
                 ${isShake ? 'animate-shake border-[#e05252] shadow-[0_0_0_3px_rgba(224,82,82,0.15)]' : ''}`}
             />
             <button 
