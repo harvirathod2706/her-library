@@ -342,10 +342,14 @@ export default function App() {
       
       if (hasSupabase) {
         try {
-          await supabase
-            .from('books')
-            .update({ series_name: null })
-            .eq('series_name', seriesName);
+          const booksToUpdate = books.filter(b => b.series_name === seriesName || (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series')));
+          for (const book of booksToUpdate) {
+            const updatedTags = (book.tags || []).filter(t => t.toLowerCase() !== 'series');
+            await supabase
+              .from('books')
+              .update({ series_name: null, tags: updatedTags })
+              .eq('id', book.id);
+          }
         } catch (err) {
           console.error(err);
         }
@@ -388,14 +392,11 @@ export default function App() {
 
     if (hasSupabase) {
       try {
-        const bookToUpdate = books.find(b => b.id === bookId);
-        if (bookToUpdate) {
-          const currentTags = bookToUpdate.tags || [];
-          const hasSeriesTag = currentTags.some(t => t.toLowerCase() === 'series');
-          const updatedTags = hasSeriesTag ? currentTags : [...currentTags, 'Series'];
+        const updatedBook = updated.find(b => b.id === bookId);
+        if (updatedBook) {
           await supabase
             .from('books')
-            .update({ series_name: seriesName, tags: updatedTags })
+            .update({ series_name: seriesName, tags: updatedBook.tags })
             .eq('id', bookId);
         }
       } catch (err) {
@@ -438,32 +439,11 @@ export default function App() {
     
     if (hasSupabase) {
       try {
-        const b = books.find(item => item.id === bookId);
-        if (b) {
-          const currentTags = b.tags || [];
-          let updatedTags = [...currentTags];
-          let updatedStatus = b.status;
-          let updatedPage = b.current_page;
-          
-          const normTag = tagName.toLowerCase();
-          if (normTag === 'favourites') {
-            if (!currentTags.some(t => t.toLowerCase() === 'favourites')) {
-              updatedTags.push('Favourites');
-            }
-          } else if (normTag === 'read') {
-            updatedStatus = 'read';
-            updatedPage = b.pages;
-          } else if (normTag === 'reading') {
-            updatedStatus = 'reading';
-            if (b.current_page === 0) updatedPage = 1;
-          } else {
-            if (!currentTags.some(t => t.toLowerCase() === normTag)) {
-              updatedTags.push(tagName);
-            }
-          }
+        const updatedBook = updated.find(item => item.id === bookId);
+        if (updatedBook) {
           await supabase
             .from('books')
-            .update({ tags: updatedTags, status: updatedStatus, current_page: updatedPage })
+            .update({ tags: updatedBook.tags, status: updatedBook.status, current_page: updatedBook.current_page })
             .eq('id', bookId);
         }
       } catch (err) {
@@ -500,16 +480,11 @@ export default function App() {
 
     if (hasSupabase) {
       try {
-        const bookToUpdate = books.find(b => b.id === id);
-        if (bookToUpdate) {
-          const currentTags = bookToUpdate.tags || [];
-          const isFav = currentTags.some(t => t.toLowerCase() === 'favourites');
-          const updatedTags = isFav 
-            ? currentTags.filter(t => t.toLowerCase() !== 'favourites')
-            : [...currentTags, 'Favourites'];
+        const updatedBook = updated.find(b => b.id === id);
+        if (updatedBook) {
           await supabase
             .from('books')
-            .update({ tags: updatedTags })
+            .update({ tags: updatedBook.tags })
             .eq('id', id);
         }
       } catch (err) {
