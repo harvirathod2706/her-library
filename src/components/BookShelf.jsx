@@ -32,7 +32,7 @@ export default function BookShelf({ books, onBookSelect }) {
       {/* Shelf books row container */}
       <div className="relative w-full max-w-5xl mx-auto px-4 flex flex-col justify-end">
         {/* Books container */}
-        <div className="flex items-end justify-center gap-0.5 overflow-x-auto overflow-y-hidden px-4 pb-0 h-[220px] scrollbar-thin scrollbar-thumb-white/10 select-none">
+        <div className="flex items-end justify-start gap-0.5 overflow-x-auto overflow-y-hidden px-4 pb-0 h-[220px] scrollbar-thin scrollbar-thumb-white/10 select-none">
           {books.map((book, index) => {
             const bgGradient = `linear-gradient(to right, ${SPINE_COLORS[index % SPINE_COLORS.length]}, ${SPINE_COLORS[(index + 3) % SPINE_COLORS.length]})`;
             const height = `${100 + (index % 4) * 25}px`;

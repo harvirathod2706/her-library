@@ -154,9 +154,9 @@ export function BookCard({ book, index, onClick }) {
   );
 }
 
-export default function BookGrid({ books, onBookSelect, onAddClick, showAddButton = true }) {
+export default function BookGrid({ books, onBookSelect, onAddClick, showAddButton = true, mobileViewMode = 'single' }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-7 mt-8">
+    <div className={`grid ${mobileViewMode === 'double' ? 'grid-cols-2 gap-4' : 'grid-cols-1 gap-6'} sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] sm:gap-7 mt-8`}>
       {books.map((book, index) => (
         <BookCard 
           key={book.id} 

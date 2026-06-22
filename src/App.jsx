@@ -14,10 +14,64 @@ import PdfReaderModal from './components/PdfReaderModal';
 import { supabase, hasSupabase } from './supabaseClient';
 import { DEFAULT_BOOKS } from './defaultBooks';
 
+const BIRTHDAY_QUOTES = [
+  {
+    text: "She is too fond of books, and it has turned her brain.",
+    author: "Louisa May Alcott"
+  },
+  {
+    text: "I declare after all there is no enjoyment like reading! How much sooner one tires of any thing than of a book!",
+    author: "Jane Austen"
+  },
+  {
+    text: "I am no bird; and no net ensnares me; I am a free human being with an independent will.",
+    author: "Charlotte Brontë"
+  },
+  {
+    text: "Sometimes, you read a book and it fills you with this weird evangelical zeal, and you become convinced that the shattered world will never be put back together unless and until all living humans read the book.",
+    author: "John Green"
+  },
+  {
+    text: "Quiet minds cannot be perplexed or frightened, but go on in fortune or misfortune at their own private pace, like a clock during a thunderstorm.",
+    author: "Robert Louis Stevenson"
+  },
+  {
+    text: "The world was hers for the reading.",
+    author: "Betty Smith"
+  },
+  {
+    text: "You can never get a cup of tea large enough or a book long enough to suit me.",
+    author: "C.S. Lewis"
+  },
+  {
+    text: "I have always imagined that Paradise will be a kind of library.",
+    author: "Jorge Luis Borges"
+  },
+  {
+    text: "Books are a uniquely portable magic.",
+    author: "Stephen King"
+  },
+  {
+    text: "We read to know we are not alone.",
+    author: "C.S. Lewis"
+  }
+];
+
 export default function App() {
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [mobileViewMode, setMobileViewMode] = useState(() => {
+    return localStorage.getItem('her_library_mobile_view_mode') || 'single';
+  });
   const [books, setBooks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentQuoteIndex((prev) => (prev + 1) % BIRTHDAY_QUOTES.length);
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Filters & Search
   const [activeFilter, setActiveFilter] = useState('all');
@@ -1227,6 +1281,39 @@ export default function App() {
           </button>
         </div>
 
+        {/* View Mode Toggle - Mobile Only */}
+        <div className="flex sm:hidden justify-center items-center gap-2 mb-8 select-none">
+          <span className="font-sans text-[10px] uppercase tracking-wider text-[#a89880] mr-1">Layout:</span>
+          <div className="inline-flex bg-white/[0.03] border border-white/5 rounded-full p-0.5 shadow-inner">
+            <button
+              onClick={() => {
+                setMobileViewMode('single');
+                localStorage.setItem('her_library_mobile_view_mode', 'single');
+              }}
+              className={`font-sans text-xs font-semibold tracking-wide py-1.5 px-4 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+                mobileViewMode === 'single'
+                  ? 'bg-[#d4a853]/15 text-[#d4a853] shadow-md border border-[#d4a853]/30'
+                  : 'text-[#a89880] hover:text-[#e8dcc8] border border-transparent'
+              }`}
+            >
+              <span>■</span> Single View
+            </button>
+            <button
+              onClick={() => {
+                setMobileViewMode('double');
+                localStorage.setItem('her_library_mobile_view_mode', 'double');
+              }}
+              className={`font-sans text-xs font-semibold tracking-wide py-1.5 px-4 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+                mobileViewMode === 'double'
+                  ? 'bg-[#d4a853]/15 text-[#d4a853] shadow-md border border-[#d4a853]/30'
+                  : 'text-[#a89880] hover:text-[#e8dcc8] border border-transparent'
+              }`}
+            >
+              <span>⌗</span> Double View
+            </button>
+          </div>
+        </div>
+
         {activeFilter === 'series' && (
           <div className="text-center max-w-[600px] mx-auto mb-10 text-[11px] text-[#a89880]/90 font-sans flex items-start sm:items-center justify-center gap-2 bg-white/[0.02] border border-white/5 rounded-xl px-5 py-3 shadow-inner select-none">
             <span className="text-[#d4a853] text-sm">ℹ️</span>
@@ -1275,7 +1362,7 @@ export default function App() {
                         </button>
                       </div>
                     </div>
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-7">
+                    <div className={`grid ${mobileViewMode === 'double' ? 'grid-cols-2 gap-4' : 'grid-cols-1 gap-6'} sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] sm:gap-7`}>
                       {seriesBooks.map((book, idx) => (
                         <BookCard 
                           key={book.id} 
@@ -1305,6 +1392,7 @@ export default function App() {
         ) : (
           <BookGrid 
             books={filteredBooks} 
+            mobileViewMode={mobileViewMode}
             onBookSelect={setSelectedBook} 
             onAddClick={() => {
               if (activeFilter === 'all') {
@@ -1327,11 +1415,25 @@ export default function App() {
         <div className="font-playfair text-[#e8dcc8] font-bold text-2xl tracking-wide">
           Happy Birthday, <span className="text-[#c4869a]">Harviii</span>
         </div>
-        <div className="font-lora text-[0.88rem] leading-relaxed text-[#a89880] italic max-w-md mx-auto mt-5">
-          "She is too fond of books, and it has turned her brain."
-          <span className="block text-right mt-2 text-[#d4a853]">— Louisa May Alcott</span>
-          <br />
-          May every chapter of your life be as <br />beautiful as the books you've read. 🌸
+        <div className="relative max-w-sm md:max-w-3xl mx-auto my-8 px-7 py-8 rounded-2xl bg-white/[0.02] border border-[#d4a853]/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02),0_12px_24px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-500">
+          {/* Decorative quote marks */}
+          <span className="absolute -top-1 left-2 text-[5rem] leading-none text-[#d4a853]/10 font-serif select-none pointer-events-none">“</span>
+          <span className="absolute -bottom-8 right-2 text-[5rem] leading-none text-[#d4a853]/10 font-serif select-none pointer-events-none">”</span>
+          
+          <div key={currentQuoteIndex} className="animate-[fade-in_0.8s_ease_both]">
+            <p className="font-playfair text-[#e8dcc8] text-base md:text-[1.1rem] leading-relaxed italic relative z-10 select-text">
+              "{BIRTHDAY_QUOTES[currentQuoteIndex].text}"
+            </p>
+            <p className="font-sans text-[10px] tracking-widest uppercase text-[#d4a853] font-semibold mt-3 relative z-10 text-right select-text">
+              — {BIRTHDAY_QUOTES[currentQuoteIndex].author}
+            </p>
+          </div>
+          
+          <div className="w-[120px] h-[1px] bg-gradient-to-r from-transparent via-[#d4a853]/30 to-transparent mx-auto my-5" />
+          
+          <p className="font-lora text-xs text-[#a89880]/90 leading-relaxed relative z-10 select-text md:whitespace-nowrap">
+            May every chapter of your life be as beautiful as the books you've read. 🌸
+          </p>
         </div>
         <div className="text-[10px] text-[#a89880]/60 uppercase tracking-[0.12em] font-sans mt-12">
           made with 💛 just for you
