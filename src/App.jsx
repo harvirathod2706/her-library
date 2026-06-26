@@ -329,7 +329,7 @@ export default function App() {
 
   const handleToggleSeriesHide = async (seriesName, hide) => {
     const updated = books.map((b) => {
-      const matchSeries = b.series_name === seriesName || 
+      const matchSeries = b.series_name === seriesName ||
         (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
       if (matchSeries) {
         return { ...b, is_hidden: hide };
@@ -347,7 +347,7 @@ export default function App() {
     if (hasSupabase) {
       try {
         const booksToHide = books.filter((b) => {
-          return b.series_name === seriesName || 
+          return b.series_name === seriesName ||
             (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
         });
         const hideIds = booksToHide.map(b => b.id);
@@ -436,7 +436,7 @@ export default function App() {
 
     if (option === 'metadata_only') {
       const updated = books.map((b) => {
-        const match = b.series_name === seriesName || 
+        const match = b.series_name === seriesName ||
           (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
         if (match) {
           const updatedTags = (b.tags || []).filter(t => t.toLowerCase() !== 'series');
@@ -446,10 +446,10 @@ export default function App() {
       });
       syncBooksState(updated);
       showToast(`Series metadata removed. Books kept! 📦`);
-      
+
       const updatedMapping = { ...seriesMapping };
       books.forEach(b => {
-        const match = b.series_name === seriesName || 
+        const match = b.series_name === seriesName ||
           (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
         if (match) {
           delete updatedMapping[b.id];
@@ -474,7 +474,7 @@ export default function App() {
       }
     } else if (option === 'all_books') {
       const updated = books.filter((b) => {
-        const match = b.series_name === seriesName || 
+        const match = b.series_name === seriesName ||
           (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
         return !match;
       });
@@ -483,7 +483,7 @@ export default function App() {
 
       const updatedMapping = { ...seriesMapping };
       const booksToDelete = books.filter((b) => {
-        return b.series_name === seriesName || 
+        return b.series_name === seriesName ||
           (!b.series_name && seriesName === "Unnamed Series" && b.tags?.some(t => t.toLowerCase() === 'series'));
       });
       booksToDelete.forEach(b => {
@@ -491,7 +491,7 @@ export default function App() {
       });
       setSeriesMapping(updatedMapping);
       localStorage.setItem('her_library_series_mapping', JSON.stringify(updatedMapping));
-      
+
       if (hasSupabase) {
         try {
           const deleteIds = booksToDelete.map(b => b.id);
@@ -602,7 +602,7 @@ export default function App() {
         let updatedTags = [...currentTags];
         let updatedStatus = b.status;
         let updatedPage = b.current_page;
-        
+
         const normTag = tagName.toLowerCase();
         if (normTag === 'favourites') {
           if (!currentTags.some(t => t.toLowerCase() === 'favourites')) {
@@ -623,10 +623,10 @@ export default function App() {
       }
       return b;
     });
-    
+
     syncBooksState(updated);
     showToast(`Book added to "${tagName}"! 📚✨`);
-    
+
     if (hasSupabase) {
       try {
         const updatedBook = updated.find(item => item.id === bookId);
@@ -647,7 +647,7 @@ export default function App() {
       if (b.id === id) {
         const currentTags = b.tags || [];
         const isFav = currentTags.some(t => t.toLowerCase() === 'favourites');
-        const updatedTags = isFav 
+        const updatedTags = isFav
           ? currentTags.filter(t => t.toLowerCase() !== 'favourites')
           : [...currentTags, 'Favourites'];
         return { ...b, tags: updatedTags };
@@ -656,11 +656,11 @@ export default function App() {
     });
 
     syncBooksState(updated);
-    
+
     setSelectedBook(prev => {
       if (prev && prev.id === id) {
         const isFav = prev.tags?.some(t => t.toLowerCase() === 'favourites');
-        const updatedTags = isFav 
+        const updatedTags = isFav
           ? prev.tags.filter(t => t.toLowerCase() !== 'favourites')
           : [...(prev.tags || []), 'Favourites'];
         return { ...prev, tags: updatedTags };
@@ -1205,20 +1205,20 @@ export default function App() {
             { id: 'literary', label: 'Literary 📜' },
             { id: 'hindi', label: 'Hindi Lit 🇮🇳' },
           ].filter(tab => !deletedDefaultTags.includes(tab.id))
-           .concat(customTags.map(tag => ({ id: tag.toLowerCase(), label: tag })))
-           .concat([{ id: 'hidden', label: 'Hidden 🙈' }])
-           .map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveFilter(tab.id)}
-              className={`font-sans text-xs font-medium tracking-wide px-4 py-2 rounded-full border transition-all cursor-pointer
+            .concat(customTags.map(tag => ({ id: tag.toLowerCase(), label: tag })))
+            .concat([{ id: 'hidden', label: 'Hidden 🙈' }])
+            .map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveFilter(tab.id)}
+                className={`font-sans text-xs font-medium tracking-wide px-4 py-2 rounded-full border transition-all cursor-pointer
                 ${activeFilter === tab.id
-                  ? 'bg-[#d4a853]/15 border-[#d4a853] text-[#d4a853] shadow-md shadow-[#d4a853]/5'
-                  : 'bg-transparent border-[#d4a853]/25 text-[#a89880] hover:bg-[#d4a853]/5 hover:text-[#d4a853]'}`}
-            >
-              {tab.label}
-            </button>
-          ))}
+                    ? 'bg-[#d4a853]/15 border-[#d4a853] text-[#d4a853] shadow-md shadow-[#d4a853]/5'
+                    : 'bg-transparent border-[#d4a853]/25 text-[#a89880] hover:bg-[#d4a853]/5 hover:text-[#d4a853]'}`}
+              >
+                {tab.label}
+              </button>
+            ))}
           {/* Create Tag Tab */}
           <button
             onClick={() => {
@@ -1290,11 +1290,10 @@ export default function App() {
                 setMobileViewMode('single');
                 localStorage.setItem('her_library_mobile_view_mode', 'single');
               }}
-              className={`font-sans text-xs font-semibold tracking-wide py-1.5 px-4 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
-                mobileViewMode === 'single'
-                  ? 'bg-[#d4a853]/15 text-[#d4a853] shadow-md border border-[#d4a853]/30'
-                  : 'text-[#a89880] hover:text-[#e8dcc8] border border-transparent'
-              }`}
+              className={`font-sans text-xs font-semibold tracking-wide py-1.5 px-4 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${mobileViewMode === 'single'
+                ? 'bg-[#d4a853]/15 text-[#d4a853] shadow-md border border-[#d4a853]/30'
+                : 'text-[#a89880] hover:text-[#e8dcc8] border border-transparent'
+                }`}
             >
               <span>■</span> Single View
             </button>
@@ -1303,11 +1302,10 @@ export default function App() {
                 setMobileViewMode('double');
                 localStorage.setItem('her_library_mobile_view_mode', 'double');
               }}
-              className={`font-sans text-xs font-semibold tracking-wide py-1.5 px-4 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
-                mobileViewMode === 'double'
-                  ? 'bg-[#d4a853]/15 text-[#d4a853] shadow-md border border-[#d4a853]/30'
-                  : 'text-[#a89880] hover:text-[#e8dcc8] border border-transparent'
-              }`}
+              className={`font-sans text-xs font-semibold tracking-wide py-1.5 px-4 rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${mobileViewMode === 'double'
+                ? 'bg-[#d4a853]/15 text-[#d4a853] shadow-md border border-[#d4a853]/30'
+                : 'text-[#a89880] hover:text-[#e8dcc8] border border-transparent'
+                }`}
             >
               <span>⌗</span> Double View
             </button>
@@ -1354,8 +1352,8 @@ export default function App() {
                         <button
                           onClick={() => handleToggleSeriesHide(seriesName, !allHidden)}
                           className={`font-sans text-[10px] px-3.5 py-1.5 rounded-full border transition-all cursor-pointer flex items-center gap-1.5
-                            ${allHidden 
-                              ? 'bg-emerald-950/40 border-emerald-500/30 text-[#4ade80] hover:bg-emerald-950/60' 
+                            ${allHidden
+                              ? 'bg-emerald-950/40 border-emerald-500/30 text-[#4ade80] hover:bg-emerald-950/60'
                               : 'bg-zinc-800/40 border-zinc-700 text-[#a89880] hover:bg-zinc-800/70 hover:text-white'}`}
                         >
                           {allHidden ? '👁️ Show Series' : '🙈 Hide Series from ALL'}
@@ -1364,11 +1362,11 @@ export default function App() {
                     </div>
                     <div className={`grid ${mobileViewMode === 'double' ? 'grid-cols-2 gap-4' : 'grid-cols-1 gap-6'} sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] sm:gap-7`}>
                       {seriesBooks.map((book, idx) => (
-                        <BookCard 
-                          key={book.id} 
-                          book={book} 
-                          index={idx} 
-                          onClick={setSelectedBook} 
+                        <BookCard
+                          key={book.id}
+                          book={book}
+                          index={idx}
+                          onClick={setSelectedBook}
                         />
                       ))}
                       {/* Add Book to Series Dotted Button */}
@@ -1390,10 +1388,10 @@ export default function App() {
             Opening your pages... 📖
           </div>
         ) : (
-          <BookGrid 
-            books={filteredBooks} 
+          <BookGrid
+            books={filteredBooks}
             mobileViewMode={mobileViewMode}
-            onBookSelect={setSelectedBook} 
+            onBookSelect={setSelectedBook}
             onAddClick={() => {
               if (activeFilter === 'all') {
                 setIsAddOpen(true);
@@ -1419,7 +1417,7 @@ export default function App() {
           {/* Decorative quote marks */}
           <span className="absolute -top-1 left-2 text-[5rem] leading-none text-[#d4a853]/10 font-serif select-none pointer-events-none">“</span>
           <span className="absolute -bottom-8 right-2 text-[5rem] leading-none text-[#d4a853]/10 font-serif select-none pointer-events-none">”</span>
-          
+
           <div key={currentQuoteIndex} className="animate-[fade-in_0.8s_ease_both]">
             <p className="font-playfair text-[#e8dcc8] text-base md:text-[1.1rem] leading-relaxed italic relative z-10 select-text">
               "{BIRTHDAY_QUOTES[currentQuoteIndex].text}"
@@ -1428,9 +1426,9 @@ export default function App() {
               — {BIRTHDAY_QUOTES[currentQuoteIndex].author}
             </p>
           </div>
-          
+
           <div className="w-[120px] h-[1px] bg-gradient-to-r from-transparent via-[#d4a853]/30 to-transparent mx-auto my-5" />
-          
+
           <p className="font-lora text-xs text-[#a89880]/90 leading-relaxed relative z-10 select-text md:whitespace-nowrap">
             May every chapter of your life be as beautiful as the books you've read. 🌸
           </p>
@@ -1613,7 +1611,7 @@ export default function App() {
         </div>
       )}
 
-      <CreateSeriesModal 
+      <CreateSeriesModal
         isOpen={isCreateSeriesOpen}
         onClose={() => setIsCreateSeriesOpen(false)}
         onCreateSeries={handleCreateSeries}
