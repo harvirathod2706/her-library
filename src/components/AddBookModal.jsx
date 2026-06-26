@@ -49,6 +49,7 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
   const [coverFile, setCoverFile] = useState(null);
   const [pdfFile, setPdfFile] = useState(null);
   const [similar, setSimilar] = useState([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     if (bookToEdit) {
@@ -159,6 +160,7 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
     }
 
     onShowToast("Librarian AI is generating details... 🪄✨");
+    setIsGenerating(true);
 
     try {
       const details = await generateBookDetails(tVal, author.trim());
@@ -195,6 +197,8 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
         setDescription(generatedDesc);
         onShowToast("✨ Local auto-fill generated creative placeholders.");
       }
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -270,6 +274,7 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
     setCoverFile(null);
     setPdfFile(null);
     setSimilar([]);
+    setIsGenerating(false);
     onClose();
   };
 
@@ -474,9 +479,36 @@ export default function AddBookModal({ isOpen, onClose, onAddBook, onEditBook, b
             <button
               type="button"
               onClick={handleAutoFill}
-              className="bg-white/[0.03] border border-white/10 hover:border-[#d4a853]/40 hover:bg-[#d4a853]/5 px-4 py-2 rounded-lg text-[#a89880] hover:text-[#d4a853] font-bold transition-all cursor-pointer"
+              disabled={isGenerating}
+              className="relative bg-white/[0.03] border border-white/10 hover:border-[#d4a853]/40 hover:bg-[#d4a853]/5 px-4 py-2 rounded-lg text-[#a89880] hover:text-[#d4a853] font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              ✨ Auto Generate
+              <span className={isGenerating ? "invisible" : "flex items-center gap-1"}>
+                ✨ Auto Generate
+              </span>
+              {isGenerating && (
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <svg
+                    className="animate-spin h-5 w-5 text-[#d4a853]"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                </span>
+              )}
             </button>
             <button
               type="submit"
